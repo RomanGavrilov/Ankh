@@ -1,5 +1,5 @@
 #pragma once
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -7,8 +7,11 @@ namespace ankh
     class DescriptorWriter
     {
     public:
-        void writeUniformBuffer(/* params TBD */);
-        void update(/* params TBD */);
+        explicit DescriptorWriter(VkDevice device);
+        void writeUniformBuffer(VkDescriptorSet set, VkBuffer buf, VkDeviceSize size);
+
+    private:
+        VkDevice m_device{};
     };
 
 } // namespace ankh

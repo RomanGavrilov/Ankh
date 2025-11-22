@@ -1,6 +1,6 @@
+// src/memory/buffer.hpp
 #pragma once
-#include "utils/Types.hpp"
-#include <cstddef>
+#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -8,11 +8,25 @@ namespace ankh
     class Buffer
     {
     public:
-        Buffer();
+        Buffer(VkPhysicalDevice phys,
+               VkDevice device,
+               VkDeviceSize size,
+               VkBufferUsageFlags usage,
+               VkMemoryPropertyFlags props);
         ~Buffer();
 
-        VkBuffer handle() const;
-        std::size_t size() const;
+        VkBuffer handle() const { return m_buffer; }
+        VkDeviceSize size() const { return m_size; }
+
+        // Map/unmap for HOST_VISIBLE buffers
+        void *map(VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE);
+        void unmap();
+
+    private:
+        VkDevice m_device{};
+        VkBuffer m_buffer{};
+        VkDeviceMemory m_memory{};
+        VkDeviceSize m_size{};
     };
 
 } // namespace ankh

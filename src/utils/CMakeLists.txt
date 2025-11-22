@@ -1,3 +1,18 @@
-add_library(ankh_utils INTERFACE)
+# src/utils/CMakeLists.txt
 
-target_include_directories(ankh_utils INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+add_library(ankh_utils STATIC
+    types.cpp
+    file-io.cpp
+)
+
+target_include_directories(ankh_utils
+    PUBLIC
+        ${ANKH_SRC_ROOT}
+)
+
+target_link_libraries(ankh_utils
+    PUBLIC
+        glm     # header-only, but OK to link
+        glfw
+        Vulkan::Vulkan
+)

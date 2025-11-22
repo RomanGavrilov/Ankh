@@ -1,7 +1,17 @@
-add_library(ankh_renderpass INTERFACE)
+# src/renderpass/CMakeLists.txt
 
+add_library(ankh_renderpass STATIC
+    render-pass.cpp
+    frame-buffer.cpp
+)
 
-target_include_directories(ankh_renderpass INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(ankh_renderpass
+    PUBLIC
+        ankh_utils
+        ankh_core
+)
 
-
-target_link_libraries(ankh_renderpass INTERFACE Vulkan::Vulkan)
+target_include_directories(ankh_renderpass
+    PUBLIC
+        ${ANKH_SRC_ROOT}
+)

@@ -1,5 +1,5 @@
 #pragma once
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -7,10 +7,14 @@ namespace ankh
     class PipelineLayout
     {
     public:
-        PipelineLayout();
+        PipelineLayout(VkDevice device, VkDescriptorSetLayout set_layout);
         ~PipelineLayout();
 
-        VkPipelineLayout handle() const;
+        VkPipelineLayout handle() const { return m_layout; }
+
+    private:
+        VkDevice m_device{};
+        VkPipelineLayout m_layout{};
     };
 
 } // namespace ankh

@@ -1,5 +1,5 @@
 #pragma once
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -7,10 +7,14 @@ namespace ankh
     class CommandPool
     {
     public:
-        CommandPool();
+        CommandPool(VkDevice device, uint32_t queueFamilyIndex);
         ~CommandPool();
 
-        VkCommandPool handle() const;
+        VkCommandPool handle() const { return m_pool; }
+
+    private:
+        VkDevice m_device{};
+        VkCommandPool m_pool{};
     };
 
 } // namespace ankh

@@ -1,7 +1,16 @@
-add_library(ankh_swapchain INTERFACE)
+# src/swapchain/CMakeLists.txt
 
+add_library(ankh_swapchain STATIC
+    swapchain.cpp
+)
 
-target_include_directories(ankh_swapchain INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(ankh_swapchain
+    PUBLIC
+        ankh_utils
+        ankh_core
+)
 
-
-target_link_libraries(ankh_swapchain INTERFACE Vulkan::Vulkan)
+target_include_directories(ankh_swapchain
+    PUBLIC
+        ${ANKH_SRC_ROOT}
+)

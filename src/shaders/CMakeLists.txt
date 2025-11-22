@@ -1,7 +1,16 @@
-add_library(ankh_shaders INTERFACE)
+# src/shaders/CMakeLists.txt
 
+add_library(ankh_shaders STATIC
+    shader-module.cpp
+)
 
-target_include_directories(ankh_shaders INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(ankh_shaders
+    PUBLIC
+        ankh_utils      # for utils/file-io.hpp and types.hpp
+        ankh_core       # for VkDevice / Vulkan linkage
+)
 
-
-target_link_libraries(ankh_shaders INTERFACE Vulkan::Vulkan)
+target_include_directories(ankh_shaders
+    PUBLIC
+        ${ANKH_SRC_ROOT}
+)

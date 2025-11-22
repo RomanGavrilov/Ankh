@@ -13,3 +13,5 @@ swapchain → renderpass → pipeline
                     renderer
                        ↓
                      app
+
+1. device.hpp forward declares class PhysicalDevice;

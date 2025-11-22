@@ -1,5 +1,5 @@
 #pragma once
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -7,10 +7,14 @@ namespace ankh
     class DescriptorSetLayout
     {
     public:
-        DescriptorSetLayout();
+        explicit DescriptorSetLayout(VkDevice device);
         ~DescriptorSetLayout();
 
-        VkDescriptorSetLayout handle() const;
+        VkDescriptorSetLayout handle() const { return m_layout; }
+
+    private:
+        VkDevice m_device{};
+        VkDescriptorSetLayout m_layout{};
     };
 
 } // namespace ankh

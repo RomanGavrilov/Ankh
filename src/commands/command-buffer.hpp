@@ -1,5 +1,5 @@
 #pragma once
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -10,7 +10,10 @@ namespace ankh
         CommandBuffer();
         ~CommandBuffer();
 
-        VkCommandBuffer handle() const;
+        VkCommandBuffer handle() const { return m_cb; }
+
+    private:
+        VkCommandBuffer m_cb{};
     };
 
 } // namespace ankh

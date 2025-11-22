@@ -1,7 +1,5 @@
 #pragma once
-#include <vector>
-#include <string>
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -12,7 +10,10 @@ namespace ankh
         Instance();
         ~Instance();
 
-        VkInstance handle() const;
+        VkInstance handle() const { return m_instance; }
+
+    private:
+        VkInstance m_instance{};
     };
 
 } // namespace ankh

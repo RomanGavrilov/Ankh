@@ -31,6 +31,7 @@ namespace ankh
     {
         std::optional<uint32_t> graphicsFamily;
         std::optional<uint32_t> presentFamily;
+
         bool isComplete() const { return graphicsFamily && presentFamily; }
     };
 
@@ -45,6 +46,7 @@ namespace ankh
     {
         glm::vec2 pos;
         glm::vec3 color;
+
         static VkVertexInputBindingDescription getBindingDescription();
         static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
     };

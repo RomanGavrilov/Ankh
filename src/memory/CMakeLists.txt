@@ -1,7 +1,17 @@
-add_library(ankh_memory INTERFACE)
+add_library(ankh_memory STATIC
+    buffer.cpp
+    allocator.cpp
+    image.cpp
+    upload-context.cpp
+)
 
+target_include_directories(ankh_memory
+    PUBLIC
+        ${ANKH_SRC_ROOT}
+)
 
-target_include_directories(ankh_memory INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
-
-
-target_link_libraries(ankh_memory INTERFACE Vulkan::Vulkan)
+target_link_libraries(ankh_memory
+    PUBLIC
+        ankh_utils
+        ankh_core     # for Vulkan::Vulkan and VkDevice etc.
+)

@@ -1,7 +1,19 @@
-add_library(ankh_core INTERFACE)
+# src/core/CMakeLists.txt
 
+add_library(ankh_core STATIC
+    instance.cpp
+    debug-messenger.cpp
+    physical-device.cpp
+    device.cpp
+)
 
-target_include_directories(ankh_core INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(ankh_core
+    PUBLIC
+        ankh_utils
+        Vulkan::Vulkan
+)
 
-
-target_link_libraries(ankh_core INTERFACE Vulkan::Vulkan)
+target_include_directories(ankh_core
+    PUBLIC
+        ${ANKH_SRC_ROOT}
+)

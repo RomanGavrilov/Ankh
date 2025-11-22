@@ -1,18 +1,25 @@
 #pragma once
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
 
+    class PhysicalDevice;
+
     class Device
     {
     public:
-        Device();
+        explicit Device(const PhysicalDevice &phys);
         ~Device();
 
-        VkDevice handle() const;
-        VkQueue graphicsQueue() const;
-        VkQueue presentQueue() const;
+        VkDevice handle() const { return m_device; }
+        VkQueue graphics_queue() const { return m_graphics_queue; }
+        VkQueue present_queue() const { return m_present_queue; }
+
+    private:
+        VkDevice m_device{};
+        VkQueue m_graphics_queue{};
+        VkQueue m_present_queue{};
     };
 
 } // namespace ankh

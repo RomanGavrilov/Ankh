@@ -5,6 +5,6 @@
 namespace ankh
 {
 
-    std::vector<char> readBinary(const std::string &path);
+    std::vector<char> read_binary(const std::string &path);
 
 } // namespace ankh

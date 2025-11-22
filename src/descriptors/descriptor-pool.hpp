@@ -1,5 +1,5 @@
 #pragma once
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -7,10 +7,14 @@ namespace ankh
     class DescriptorPool
     {
     public:
-        DescriptorPool();
+        DescriptorPool(VkDevice device, uint32_t max_sets);
         ~DescriptorPool();
 
-        VkDescriptorPool handle() const;
+        VkDescriptorPool handle() const { return m_pool; }
+
+    private:
+        VkDevice m_device{};
+        VkDescriptorPool m_pool{};
     };
 
 } // namespace ankh

@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -8,10 +8,14 @@ namespace ankh
     class ShaderModule
     {
     public:
-        explicit ShaderModule(const std::string &path);
+        ShaderModule(VkDevice device, const std::string &path);
         ~ShaderModule();
 
-        VkShaderModule handle() const;
+        VkShaderModule handle() const { return m_module; }
+
+    private:
+        VkDevice m_device{};
+        VkShaderModule m_module{};
     };
 
 } // namespace ankh

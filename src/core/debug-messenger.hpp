@@ -1,5 +1,5 @@
 #pragma once
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -7,8 +7,12 @@ namespace ankh
     class DebugMessenger
     {
     public:
-        DebugMessenger();
+        explicit DebugMessenger(VkInstance instance);
         ~DebugMessenger();
+
+    private:
+        VkInstance m_instance{};
+        VkDebugUtilsMessengerEXT m_messenger{};
     };
 
 } // namespace ankh

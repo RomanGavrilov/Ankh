@@ -1,7 +1,17 @@
-add_library(ankh_descriptors INTERFACE)
+# src/descriptors/CMakeLists.txt
 
+add_library(ankh_descriptors STATIC
+    descriptor-set-layout.cpp
+    descriptor-pool.cpp
+)
 
-target_include_directories(ankh_descriptors INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(ankh_descriptors
+    PUBLIC
+        ankh_utils
+        ankh_core
+)
 
-
-target_link_libraries(ankh_descriptors INTERFACE Vulkan::Vulkan)
+target_include_directories(ankh_descriptors
+    PUBLIC
+        ${ANKH_SRC_ROOT}
+)

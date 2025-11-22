@@ -1,5 +1,5 @@
 #pragma once
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -7,10 +7,17 @@ namespace ankh
     class Framebuffer
     {
     public:
-        Framebuffer();
+        Framebuffer(VkDevice device,
+                    VkRenderPass render_pass,
+                    VkImageView image_view,
+                    VkExtent2D extent);
         ~Framebuffer();
 
-        VkFramebuffer handle() const;
+        VkFramebuffer handle() const { return m_framebuffer; }
+
+    private:
+        VkDevice m_device{};
+        VkFramebuffer m_framebuffer{};
     };
 
 } // namespace ankh

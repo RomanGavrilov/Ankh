@@ -1,7 +1,16 @@
-add_library(ankh_sync INTERFACE)
+# src/sync/CMakeLists.txt
 
+add_library(ankh_sync STATIC
+    sync-primitives.cpp
+)
 
-target_include_directories(ankh_sync INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(ankh_sync
+    PUBLIC
+        ankh_utils
+        ankh_core
+)
 
-
-target_link_libraries(ankh_sync INTERFACE Vulkan::Vulkan)
+target_include_directories(ankh_sync
+    PUBLIC
+        ${ANKH_SRC_ROOT}
+)
