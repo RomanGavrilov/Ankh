@@ -1,0 +1,5 @@
+add_library(ankh_platform INTERFACE)
+
+target_include_directories(ankh_platform INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+target_link_libraries(ankh_platform INTERFACE glfw)
