@@ -17,7 +17,7 @@
 #include "pipeline/graphics-pipeline.hpp"
 #include "sync/sync-primitives.hpp"
 #include "utils/types.hpp"
-#include "memory/buffer.hpp" // <-- RAII Buffer
+#include "memory/buffer.hpp"
 
 #include <chrono>
 #include <cstring>
