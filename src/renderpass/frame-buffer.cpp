@@ -26,6 +26,29 @@ namespace ankh
             throw std::runtime_error("failed to create framebuffer");
     }
 
+    Framebuffer::Framebuffer(Framebuffer &&other) noexcept
+        : m_device(other.m_device), m_framebuffer(other.m_framebuffer)
+    {
+        other.m_device = {};
+        other.m_framebuffer = {};
+    }
+
+    Framebuffer &Framebuffer::operator=(Framebuffer &&other) noexcept
+    {
+        if (this != &other)
+        {
+            if (m_framebuffer)
+                vkDestroyFramebuffer(m_device, m_framebuffer, nullptr);
+
+            m_device = other.m_device;
+            m_framebuffer = other.m_framebuffer;
+
+            other.m_device = {};
+            other.m_framebuffer = {};
+        }
+        return *this;
+    }
+
     Framebuffer::~Framebuffer()
     {
         if (m_framebuffer)

@@ -56,29 +56,30 @@ namespace ankh
         void cleanup_swapchain();
 
     private:
-        Window *m_window = nullptr;
-        Instance *m_instance = nullptr;
-        DebugMessenger *m_debug_messenger = nullptr;
-        Surface *m_surface = nullptr;
+        std::unique_ptr<Window> m_window;
+        std::unique_ptr<Instance> m_instance;
+        std::unique_ptr<DebugMessenger> m_debug_messenger;
+        std::unique_ptr<Surface> m_surface;
+
         PhysicalDevice *m_physical_device = nullptr;
-        Device *m_device = nullptr;
-        Swapchain *m_swapchain = nullptr;
-        RenderPass *m_render_pass = nullptr;
 
-        DescriptorSetLayout *m_descriptor_set_layout = nullptr;
-        DescriptorPool *m_descriptor_pool = nullptr;
-        PipelineLayout *m_pipeline_layout = nullptr;
-        GraphicsPipeline *m_graphics_pipeline = nullptr;
+        std::unique_ptr<Device> m_device;
+        std::unique_ptr<Swapchain> m_swapchain;
+        std::unique_ptr<RenderPass> m_render_pass;
 
-        std::vector<Framebuffer *> m_framebuffers;
+        std::unique_ptr<DescriptorSetLayout> m_descriptor_set_layout;
+        std::unique_ptr<DescriptorPool> m_descriptor_pool;
+        std::unique_ptr<PipelineLayout> m_pipeline_layout;
+        std::unique_ptr<GraphicsPipeline> m_graphics_pipeline;
+
+        std::vector<Framebuffer> m_framebuffers;
 
         VkCommandPool m_command_pool{};
         std::vector<VkCommandBuffer> m_command_buffers;
 
         std::unique_ptr<Buffer> m_vertex_buffer{};
-        
+
         std::unique_ptr<Buffer> m_index_buffer{};
-       
 
         std::vector<VkBuffer> m_uniform_buffers;
         std::vector<VkDeviceMemory> m_uniform_buffers_memory;
@@ -86,7 +87,7 @@ namespace ankh
 
         std::vector<VkDescriptorSet> m_descriptor_sets;
 
-        SyncPrimitives *m_sync = nullptr;
+        std::unique_ptr<SyncPrimitives> m_sync;
         uint32_t m_current_frame = 0;
 
         bool m_framebuffer_resized = false;

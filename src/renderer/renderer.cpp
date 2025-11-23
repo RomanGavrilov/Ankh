@@ -46,11 +46,10 @@ namespace ankh
         }
 
         // Descriptor pool is RAII
-        delete m_descriptor_pool;
+        m_descriptor_pool.reset();
 
         // Sync is RAII too
-        delete m_sync;
-
+        m_sync.reset();
         // Index & vertex buffers are RAII via std::unique_ptr<Buffer>
         // -> no vkDestroyBuffer/vkFreeMemory calls needed here
         m_index_buffer.reset();
@@ -58,39 +57,38 @@ namespace ankh
 
         vkDestroyCommandPool(m_device->handle(), m_command_pool, nullptr);
 
-        delete m_graphics_pipeline;
-        delete m_pipeline_layout;
-        delete m_descriptor_set_layout;
-        delete m_render_pass;
-        delete m_swapchain;
-
-        delete m_device;
-        delete m_physical_device;
-        delete m_surface;
-        delete m_debug_messenger;
-        delete m_instance;
-        delete m_window;
+        m_graphics_pipeline.reset();
+        m_pipeline_layout.reset();
+        m_descriptor_set_layout.reset();
+        m_render_pass.reset();
+        m_swapchain.reset();
+        m_device.reset();
+        delete m_physical_device; // raw pointer cleanup
+        m_surface.reset();
+        m_debug_messenger.reset();
+        m_instance.reset();
+        m_window.reset();
     }
 
     void Renderer::init_vulkan()
     {
-        m_window = new Window("Vulkan", kWidth, kHeight);
-        m_instance = new Instance();
-        m_debug_messenger = new DebugMessenger(m_instance->handle());
-        m_surface = new Surface(m_instance->handle(), m_window->handle());
+        m_window = std::make_unique<Window>("Vulkan", kWidth, kHeight);
+        m_instance = std::make_unique<Instance>();
+        m_debug_messenger = std::make_unique<DebugMessenger>(m_instance->handle());
+        m_surface = std::make_unique<Surface>(m_instance->handle(), m_window->handle());
         m_physical_device = new PhysicalDevice(m_instance->handle(), m_surface->handle());
-        m_device = new Device(*m_physical_device);
-        m_swapchain = new Swapchain(*m_physical_device,
-                                    m_device->handle(),
-                                    m_surface->handle(),
-                                    m_window->handle());
-        m_render_pass = new RenderPass(m_device->handle(), m_swapchain->image_format());
+        m_device = std::make_unique<Device>(*m_physical_device);
+        m_swapchain = std::make_unique<Swapchain>(*m_physical_device,
+                                                  m_device->handle(),
+                                                  m_surface->handle(),
+                                                  m_window->handle());
+        m_render_pass = std::make_unique<RenderPass>(m_device->handle(), m_swapchain->image_format());
 
-        m_descriptor_set_layout = new DescriptorSetLayout(m_device->handle());
-        m_pipeline_layout = new PipelineLayout(m_device->handle(), m_descriptor_set_layout->handle());
-        m_graphics_pipeline = new GraphicsPipeline(m_device->handle(),
-                                                   m_render_pass->handle(),
-                                                   m_pipeline_layout->handle());
+        m_descriptor_set_layout = std::make_unique<DescriptorSetLayout>(m_device->handle());
+        m_pipeline_layout = std::make_unique<PipelineLayout>(m_device->handle(), m_descriptor_set_layout->handle());
+        m_graphics_pipeline = std::make_unique<GraphicsPipeline>(m_device->handle(),
+                                                                 m_render_pass->handle(),
+                                                                 m_pipeline_layout->handle());
 
         create_framebuffers();
         create_command_pool();
@@ -101,7 +99,7 @@ namespace ankh
         allocate_descriptor_sets();
         create_command_buffers();
 
-        m_sync = new SyncPrimitives(m_device->handle(), kMaxFramesInFlight);
+        m_sync = std::make_unique<SyncPrimitives>(m_device->handle(), kMaxFramesInFlight);
     }
 
     void Renderer::create_framebuffers()
@@ -109,21 +107,17 @@ namespace ankh
         for (auto view : m_swapchain->image_views())
         {
             m_framebuffers.push_back(
-                new Framebuffer(m_device->handle(),
-                                m_render_pass->handle(),
-                                view,
-                                m_swapchain->extent()));
+                Framebuffer(m_device->handle(),
+                            m_render_pass->handle(),
+                            view,
+                            m_swapchain->extent()));
         }
     }
 
     void Renderer::cleanup_swapchain()
     {
-        for (auto fb : m_framebuffers)
-            delete fb;
         m_framebuffers.clear();
-
-        delete m_swapchain;
-        m_swapchain = nullptr;
+        m_swapchain.reset();
     }
 
     void Renderer::create_command_pool()
@@ -308,7 +302,7 @@ namespace ankh
 
     void Renderer::create_descriptor_pool()
     {
-        m_descriptor_pool = new DescriptorPool(m_device->handle(), kMaxFramesInFlight);
+        m_descriptor_pool = std::make_unique<DescriptorPool>(m_device->handle(), kMaxFramesInFlight);
     }
 
     void Renderer::allocate_descriptor_sets()
@@ -362,6 +356,11 @@ namespace ankh
 
     void Renderer::record_command_buffer(VkCommandBuffer cmd, uint32_t image_index)
     {
+        if (image_index >= m_framebuffers.size())
+        {
+            throw std::runtime_error("invalid framebuffer index in record_command_buffer");
+        }
+
         VkCommandBufferBeginInfo bi{};
         bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -371,7 +370,8 @@ namespace ankh
         VkRenderPassBeginInfo rp{};
         rp.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         rp.renderPass = m_render_pass->handle();
-        rp.framebuffer = m_framebuffers[image_index]->handle();
+
+        rp.framebuffer = m_framebuffers[image_index].handle();
         rp.renderArea.offset = {0, 0};
         rp.renderArea.extent = m_swapchain->extent();
 
@@ -533,11 +533,11 @@ namespace ankh
 
         cleanup_swapchain();
 
-        m_swapchain = new Swapchain(*m_physical_device,
-                                    m_device->handle(),
-                                    m_surface->handle(),
-                                    m_window->handle());
-        m_render_pass = new RenderPass(m_device->handle(), m_swapchain->image_format());
+        m_swapchain = std::make_unique<Swapchain>(*m_physical_device,
+                                                  m_device->handle(),
+                                                  m_surface->handle(),
+                                                  m_window->handle());
+        m_render_pass = std::make_unique<RenderPass>(m_device->handle(), m_swapchain->image_format());
         create_framebuffers();
     }
 
