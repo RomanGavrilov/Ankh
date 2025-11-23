@@ -15,6 +15,8 @@ target_link_libraries(ankh_renderer
         ankh_pipeline
         ankh_sync
         ankh_memory
+        ankh_commands
+        
 )
 
 target_include_directories(ankh_renderer

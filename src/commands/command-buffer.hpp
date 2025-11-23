@@ -10,7 +10,7 @@ namespace ankh
         CommandBuffer();
         ~CommandBuffer();
 
-        VkCommandBuffer handle() const { return m_cb; }
+        VkCommandBuffer handle() const;
 
     private:
         VkCommandBuffer m_cb{};

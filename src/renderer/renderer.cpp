@@ -18,6 +18,7 @@
 #include "sync/sync-primitives.hpp"
 #include "utils/types.hpp"
 #include "memory/buffer.hpp"
+#include "commands/command-pool.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -45,25 +46,18 @@ namespace ankh
             vkFreeMemory(m_device->handle(), m_uniform_buffers_memory[i], nullptr);
         }
 
-        // Descriptor pool is RAII
         m_descriptor_pool.reset();
-
-        // Sync is RAII too
         m_sync.reset();
-        // Index & vertex buffers are RAII via std::unique_ptr<Buffer>
-        // -> no vkDestroyBuffer/vkFreeMemory calls needed here
         m_index_buffer.reset();
         m_vertex_buffer.reset();
-
-        vkDestroyCommandPool(m_device->handle(), m_command_pool, nullptr);
-
+        m_command_pool.reset();
         m_graphics_pipeline.reset();
         m_pipeline_layout.reset();
         m_descriptor_set_layout.reset();
         m_render_pass.reset();
         m_swapchain.reset();
         m_device.reset();
-        delete m_physical_device; // raw pointer cleanup
+        delete m_physical_device;
         m_surface.reset();
         m_debug_messenger.reset();
         m_instance.reset();
@@ -129,8 +123,7 @@ namespace ankh
         ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         ci.queueFamilyIndex = indices.graphicsFamily.value();
 
-        if (vkCreateCommandPool(m_device->handle(), &ci, nullptr, &m_command_pool) != VK_SUCCESS)
-            throw std::runtime_error("failed to create command pool");
+        m_command_pool = std::make_unique<CommandPool>(m_device->handle(), indices.graphicsFamily.value());
     }
 
     static uint32_t find_memory_type(VkPhysicalDevice phys,
@@ -185,7 +178,7 @@ namespace ankh
     {
         VkCommandBufferAllocateInfo ai{};
         ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        ai.commandPool = m_command_pool;
+        ai.commandPool = m_command_pool->handle();
         ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         ai.commandBufferCount = 1;
 
@@ -212,7 +205,7 @@ namespace ankh
         vkQueueSubmit(m_device->graphics_queue(), 1, &submit, VK_NULL_HANDLE);
         vkQueueWaitIdle(m_device->graphics_queue());
 
-        vkFreeCommandBuffers(m_device->handle(), m_command_pool, 1, &cmd);
+        vkFreeCommandBuffers(m_device->handle(), m_command_pool->handle(), 1, &cmd);
     }
 
     // ===== changed to use std::unique_ptr<Buffer> =====
@@ -318,7 +311,9 @@ namespace ankh
 
         m_descriptor_sets.resize(kMaxFramesInFlight);
         if (vkAllocateDescriptorSets(m_device->handle(), &ai, m_descriptor_sets.data()) != VK_SUCCESS)
+        {
             throw std::runtime_error("failed to allocate descriptor sets");
+        }
 
         for (int i = 0; i < kMaxFramesInFlight; ++i)
         {
@@ -346,12 +341,14 @@ namespace ankh
 
         VkCommandBufferAllocateInfo ai{};
         ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        ai.commandPool = m_command_pool;
+        ai.commandPool = m_command_pool->handle();
         ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         ai.commandBufferCount = static_cast<uint32_t>(m_command_buffers.size());
 
         if (vkAllocateCommandBuffers(m_device->handle(), &ai, m_command_buffers.data()) != VK_SUCCESS)
+        {
             throw std::runtime_error("failed to allocate command buffers");
+        }
     }
 
     void Renderer::record_command_buffer(VkCommandBuffer cmd, uint32_t image_index)
@@ -365,7 +362,9 @@ namespace ankh
         bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
         if (vkBeginCommandBuffer(cmd, &bi) != VK_SUCCESS)
+        {
             throw std::runtime_error("failed to begin command buffer");
+        }
 
         VkRenderPassBeginInfo rp{};
         rp.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
