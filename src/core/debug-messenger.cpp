@@ -1,8 +1,28 @@
 #include "core/debug-messenger.hpp"
 #include <iostream>
+#include <atomic>
 
 namespace ankh
 {
+    // Static counters for validation errors and warnings
+    static std::atomic<uint32_t> s_error_count{0};
+    static std::atomic<uint32_t> s_warning_count{0};
+
+    uint32_t DebugMessenger::error_count()
+    {
+        return s_error_count.load();
+    }
+
+    uint32_t DebugMessenger::warning_count()
+    {
+        return s_warning_count.load();
+    }
+
+    void DebugMessenger::reset_counters()
+    {
+        s_error_count.store(0);
+        s_warning_count.store(0);
+    }
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -11,9 +31,15 @@ namespace ankh
         void *)
     {
 
-        if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+        if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
         {
-            std::cerr << "validation: " << callbackData->pMessage << std::endl;
+            s_error_count.fetch_add(1);
+            std::cerr << "validation error: " << callbackData->pMessage << std::endl;
+        }
+        else if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+        {
+            s_warning_count.fetch_add(1);
+            std::cerr << "validation warning: " << callbackData->pMessage << std::endl;
         }
         return VK_FALSE;
     }

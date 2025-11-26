@@ -24,3 +24,10 @@ else()
 endif()
 
 add_subdirectory(src)
+
+# Enable testing
+option(BUILD_TESTS "Build tests" ON)
+if(BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

@@ -475,9 +475,23 @@ namespace ankh
         {
             glfwPollEvents();
             draw_frame();
+            m_frames_rendered++;
         }
 
         vkDeviceWaitIdle(m_device->handle());
+    }
+
+    bool Renderer::run_frames(uint32_t frame_count)
+    {
+        for (uint32_t i = 0; i < frame_count && !glfwWindowShouldClose(m_window->handle()); ++i)
+        {
+            glfwPollEvents();
+            draw_frame();
+            m_frames_rendered++;
+        }
+
+        vkDeviceWaitIdle(m_device->handle());
+        return true;
     }
 
 } // namespace ankh

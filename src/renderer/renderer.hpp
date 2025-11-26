@@ -31,6 +31,13 @@ namespace ankh
         ~Renderer();
 
         void run();
+        
+        // Run for a limited number of frames (for testing)
+        // Returns true if all frames rendered successfully without crash
+        bool run_frames(uint32_t frame_count);
+        
+        // Returns the number of frames rendered
+        uint32_t frames_rendered() const { return m_frames_rendered; }
 
     private:
         void init_vulkan();
@@ -78,6 +85,7 @@ namespace ankh
 
         uint32_t m_current_frame = 0;
         bool m_framebuffer_resized = false;
+        uint32_t m_frames_rendered = 0;
     };
 
 } // namespace ankh
