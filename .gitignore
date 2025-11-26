@@ -51,3 +51,8 @@
 
 # Downloaded library files (not part of original repo)
 /libs/glfw/CMake/GenerateMappings.cmake
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/

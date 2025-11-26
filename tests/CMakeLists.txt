@@ -1,22 +1,31 @@
 # tests/CMakeLists.txt
 
-find_package(GTest REQUIRED)
+# Find Python for running pytest
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-add_executable(integration_test
-    integration_test.cpp
+# Add Python integration tests to CTest
+add_test(
+    NAME integration_tests
+    COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/test_integration.py -v
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/src
 )
 
-target_link_libraries(integration_test
-    PRIVATE
-        GTest::gtest
-        pthread
+# Set up fixtures to ensure Ankh is built before tests run
+set_tests_properties(integration_tests PROPERTIES
+    FIXTURES_REQUIRED ankh_build
 )
 
-# Ensure main Ankh executable is built before running tests
-add_dependencies(integration_test Ankh)
+# Create a custom target to mark Ankh as a build fixture
+add_custom_target(ankh_test_fixture
+    DEPENDS Ankh
+)
 
-# Add test to CTest
-include(GoogleTest)
-gtest_discover_tests(integration_test
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tests
+# Add a test that builds Ankh (used as a fixture setup)
+add_test(
+    NAME build_ankh
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target Ankh
+)
+
+set_tests_properties(build_ankh PROPERTIES
+    FIXTURES_SETUP ankh_build
 )

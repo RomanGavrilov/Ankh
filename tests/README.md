@@ -9,13 +9,14 @@ The integration tests run the Ankh application as a **separate process**, comple
 - Does not modify any production code
 - Tests the actual released binary
 - Captures validation errors from stderr
-- Detects crashes via process signals
+- Detects crashes via process exit codes
 
 ## Prerequisites
 
 ### System Dependencies
 
-- GoogleTest library (`libgtest-dev` on Ubuntu/Debian)
+- Python 3.8+
+- pytest (`pip install pytest`)
 - Vulkan SDK and validation layers
 - X11 display (or Xvfb for headless testing)
 - `glslc` shader compiler
@@ -23,23 +24,18 @@ The integration tests run the Ankh application as a **separate process**, comple
 ### On Ubuntu/Debian
 
 ```bash
-sudo apt-get install -y libgtest-dev vulkan-validationlayers mesa-vulkan-drivers xvfb glslc
+sudo apt-get install -y python3 python3-pip vulkan-validationlayers mesa-vulkan-drivers xvfb glslc
+pip install pytest
 ```
 
-## Building Tests
+## Building the App
 
-Tests are built by default with the project:
+Build the Ankh application first:
 
 ```bash
 mkdir -p build && cd build
 cmake .. -DBUILD_TESTS=ON
 make
-```
-
-To disable tests:
-
-```bash
-cmake .. -DBUILD_TESTS=OFF
 ```
 
 ## Running Tests
@@ -53,11 +49,11 @@ cd build
 ctest --output-on-failure
 ```
 
-Or run directly:
+Or run pytest directly:
 
 ```bash
-cd build/tests
-./integration_test
+cd build
+python3 -m pytest ../tests/test_integration.py -v
 ```
 
 ### Headless (CI/Server)
@@ -79,14 +75,14 @@ ctest --output-on-failure
 
 ## Test Cases
 
-### `AppStartupTest.StartsWithoutCrash`
+### `test_starts_without_crash`
 
-Runs the application for a few seconds and verifies it doesn't crash (no signals like SIGSEGV, SIGABRT, etc.).
+Runs the application for a few seconds and verifies it doesn't crash (exit code >= 0).
 
-### `AppStartupTest.StartsWithoutValidationErrors`
+### `test_starts_without_validation_errors`
 
 Runs the application and captures stderr output to check for Vulkan validation layer error messages.
 
-### `AppStartupTest.ContentIsRendered`
+### `test_content_is_rendered`
 
 Verifies that the application runs for the expected duration (doesn't exit immediately), indicating it's actually rendering content.
