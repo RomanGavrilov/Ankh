@@ -1,8 +1,9 @@
+// src/renderer/renderer.hpp
 #pragma once
 #include "utils/types.hpp"
-#include "memory/buffer.hpp"
+
 #include <memory>
-#include "frame/frame-context.hpp"
+#include <vector>
 
 namespace ankh
 {
@@ -19,10 +20,9 @@ namespace ankh
     class DescriptorPool;
     class PipelineLayout;
     class GraphicsPipeline;
-
     class Framebuffer;
     class Buffer;
-    class CommandPool;
+    class FrameContext;
 
     class Renderer
     {
@@ -45,11 +45,6 @@ namespace ankh
 
         void record_command_buffer(VkCommandBuffer cmd, uint32_t image_index);
         void update_uniform_buffer(FrameContext &frame);
-        void create_buffer(VkDeviceSize size,
-                           VkBufferUsageFlags usage,
-                           VkMemoryPropertyFlags properties,
-                           VkBuffer &buffer,
-                           VkDeviceMemory &memory);
 
         void copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);
 
@@ -64,18 +59,22 @@ namespace ankh
         std::unique_ptr<Surface> m_surface;
         PhysicalDevice *m_physical_device = nullptr;
         std::unique_ptr<Device> m_device;
+
         std::unique_ptr<Swapchain> m_swapchain;
         std::unique_ptr<RenderPass> m_render_pass;
+
         std::unique_ptr<DescriptorSetLayout> m_descriptor_set_layout;
         std::unique_ptr<DescriptorPool> m_descriptor_pool;
         std::unique_ptr<PipelineLayout> m_pipeline_layout;
         std::unique_ptr<GraphicsPipeline> m_graphics_pipeline;
 
         std::vector<Framebuffer> m_framebuffers;
-        std::unique_ptr<Buffer> m_vertex_buffer;
-        std::unique_ptr<Buffer> m_index_buffer;
+
+        std::unique_ptr<Buffer> m_vertex_buffer{};
+        std::unique_ptr<Buffer> m_index_buffer{};
 
         std::vector<VkDescriptorSet> m_descriptor_sets;
+
         std::vector<FrameContext> m_frames;
 
         uint32_t m_current_frame = 0;

@@ -131,56 +131,6 @@ namespace ankh
         m_render_pass.reset();
     }
 
-    // ==== helper for legacy raw buffer creation (used only by old UBO path, now unused) ====
-
-    static uint32_t find_memory_type(VkPhysicalDevice phys,
-                                     uint32_t type_filter,
-                                     VkMemoryPropertyFlags properties)
-    {
-        VkPhysicalDeviceMemoryProperties memProps{};
-        vkGetPhysicalDeviceMemoryProperties(phys, &memProps);
-
-        for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i)
-        {
-            if ((type_filter & (1u << i)) &&
-                (memProps.memoryTypes[i].propertyFlags & properties) == properties)
-                return i;
-        }
-
-        throw std::runtime_error("failed to find suitable memory type");
-    }
-
-    void Renderer::create_buffer(VkDeviceSize size,
-                                 VkBufferUsageFlags usage,
-                                 VkMemoryPropertyFlags properties,
-                                 VkBuffer &buffer,
-                                 VkDeviceMemory &memory)
-    {
-        VkBufferCreateInfo bi{};
-        bi.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bi.size = size;
-        bi.usage = usage;
-        bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        if (vkCreateBuffer(m_device->handle(), &bi, nullptr, &buffer) != VK_SUCCESS)
-            throw std::runtime_error("failed to create buffer");
-
-        VkMemoryRequirements req{};
-        vkGetBufferMemoryRequirements(m_device->handle(), buffer, &req);
-
-        VkMemoryAllocateInfo ai{};
-        ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        ai.allocationSize = req.size;
-        ai.memoryTypeIndex = find_memory_type(m_physical_device->handle(),
-                                              req.memoryTypeBits,
-                                              properties);
-
-        if (vkAllocateMemory(m_device->handle(), &ai, nullptr, &memory) != VK_SUCCESS)
-            throw std::runtime_error("failed to allocate buffer memory");
-
-        vkBindBufferMemory(m_device->handle(), buffer, memory, 0);
-    }
-
     // ==== single-use copy using a temporary pool + command buffer ====
 
     void Renderer::copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size)
