@@ -1,2 +1,0 @@
-/usr/bin/ar qc libankh_renderpass.a "CMakeFiles/ankh_renderpass.dir/render-pass.cpp.o" "CMakeFiles/ankh_renderpass.dir/frame-buffer.cpp.o"
-/usr/bin/ranlib libankh_renderpass.a

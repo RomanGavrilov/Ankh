@@ -41,7 +41,13 @@
 *.out
 *.app
 *.spv
-*.cmake
 
 # debug information files
 *.dwo
+
+# CodeQL build directories
+/_codeql_build_dir/
+/_codeql_detected_source_root
+
+# Downloaded library files (not part of original repo)
+/libs/glfw/CMake/GenerateMappings.cmake

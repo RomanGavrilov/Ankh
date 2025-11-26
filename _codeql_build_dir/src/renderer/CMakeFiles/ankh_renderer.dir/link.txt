@@ -1,2 +1,0 @@
-/usr/bin/ar qc libankh_renderer.a CMakeFiles/ankh_renderer.dir/renderer.cpp.o
-/usr/bin/ranlib libankh_renderer.a

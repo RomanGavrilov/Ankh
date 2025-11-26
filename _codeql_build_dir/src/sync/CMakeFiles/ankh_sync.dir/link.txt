@@ -1,2 +1,0 @@
-/usr/bin/ar qc libankh_sync.a "CMakeFiles/ankh_sync.dir/sync-primitives.cpp.o"
-/usr/bin/ranlib libankh_sync.a

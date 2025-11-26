@@ -1,2 +1,0 @@
-/usr/bin/ar qc libankh_memory.a CMakeFiles/ankh_memory.dir/buffer.cpp.o
-/usr/bin/ranlib libankh_memory.a

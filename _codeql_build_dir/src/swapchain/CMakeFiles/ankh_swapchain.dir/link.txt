@@ -1,2 +1,0 @@
-/usr/bin/ar qc libankh_swapchain.a CMakeFiles/ankh_swapchain.dir/swapchain.cpp.o
-/usr/bin/ranlib libankh_swapchain.a
