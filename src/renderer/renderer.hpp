@@ -40,7 +40,8 @@ namespace ankh
         void create_index_buffer();
 
         void create_descriptor_pool();
-        void allocate_descriptor_sets();
+
+        // Allocates descriptor sets internally and wires them to FrameContexts
         void create_frames();
 
         void record_command_buffer(VkCommandBuffer cmd, uint32_t image_index);
@@ -72,8 +73,6 @@ namespace ankh
 
         std::unique_ptr<Buffer> m_vertex_buffer{};
         std::unique_ptr<Buffer> m_index_buffer{};
-
-        std::vector<VkDescriptorSet> m_descriptor_sets;
 
         std::vector<FrameContext> m_frames;
 

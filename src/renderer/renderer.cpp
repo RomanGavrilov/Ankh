@@ -105,8 +105,7 @@ namespace ankh
         create_vertex_buffer();
         create_index_buffer();
         create_descriptor_pool();
-        allocate_descriptor_sets();
-        create_frames(); // per-frame command pool + cmd buffer + UBO + sync
+        create_frames();
     }
 
     void Renderer::create_framebuffers()
@@ -226,24 +225,6 @@ namespace ankh
         m_descriptor_pool = std::make_unique<DescriptorPool>(m_device->handle(), kMaxFramesInFlight);
     }
 
-    void Renderer::allocate_descriptor_sets()
-    {
-        std::vector<VkDescriptorSetLayout> layouts(kMaxFramesInFlight,
-                                                   m_descriptor_set_layout->handle());
-
-        VkDescriptorSetAllocateInfo ai{};
-        ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        ai.descriptorPool = m_descriptor_pool->handle();
-        ai.descriptorSetCount = kMaxFramesInFlight;
-        ai.pSetLayouts = layouts.data();
-
-        m_descriptor_sets.resize(kMaxFramesInFlight);
-        if (vkAllocateDescriptorSets(m_device->handle(), &ai, m_descriptor_sets.data()) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to allocate descriptor sets");
-        }
-    }
-
     // ===== create per-frame contexts (pool + cmd buffer + UBO + sync) =====
 
     void Renderer::create_frames()
@@ -255,6 +236,24 @@ namespace ankh
         uint32_t graphicsFamily = queues.graphicsFamily.value();
         VkDeviceSize uboSize = sizeof(UniformBufferObject);
 
+        // 1) Allocate descriptor sets (one per frame)
+        std::vector<VkDescriptorSetLayout> layouts(
+            kMaxFramesInFlight,
+            m_descriptor_set_layout->handle());
+
+        VkDescriptorSetAllocateInfo ai{};
+        ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        ai.descriptorPool = m_descriptor_pool->handle();
+        ai.descriptorSetCount = kMaxFramesInFlight;
+        ai.pSetLayouts = layouts.data();
+
+        std::vector<VkDescriptorSet> sets(kMaxFramesInFlight);
+        if (vkAllocateDescriptorSets(m_device->handle(), &ai, sets.data()) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to allocate descriptor sets");
+        }
+
+        // 2) Create one FrameContext per frame, each owning its descriptor set
         for (uint32_t i = 0; i < kMaxFramesInFlight; ++i)
         {
             m_frames.emplace_back(
@@ -262,8 +261,7 @@ namespace ankh
                 m_device->handle(),
                 graphicsFamily,
                 uboSize,
-                m_descriptor_sets[i] // FrameContext wires UBO → descriptor
-            );
+                sets[i]);
         }
     }
 
