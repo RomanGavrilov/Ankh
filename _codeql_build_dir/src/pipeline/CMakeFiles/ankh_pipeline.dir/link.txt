@@ -1,0 +1,2 @@
+/usr/bin/ar qc libankh_pipeline.a "CMakeFiles/ankh_pipeline.dir/pipeline-layout.cpp.o" "CMakeFiles/ankh_pipeline.dir/graphics-pipeline.cpp.o"
+/usr/bin/ranlib libankh_pipeline.a

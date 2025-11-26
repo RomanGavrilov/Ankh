@@ -1,0 +1,2 @@
+/usr/bin/ar qc libankh_utils.a CMakeFiles/ankh_utils.dir/types.cpp.o "CMakeFiles/ankh_utils.dir/file-io.cpp.o"
+/usr/bin/ranlib libankh_utils.a

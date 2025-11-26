@@ -10,10 +10,4 @@ namespace ankh
         renderer.run();
     }
 
-    bool Application::run_frames(uint32_t frame_count)
-    {
-        Renderer renderer;
-        return renderer.run_frames(frame_count);
-    }
-
 } // namespace ankh

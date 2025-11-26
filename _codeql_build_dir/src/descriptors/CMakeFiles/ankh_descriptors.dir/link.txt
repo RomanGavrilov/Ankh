@@ -1,0 +1,2 @@
+/usr/bin/ar qc libankh_descriptors.a "CMakeFiles/ankh_descriptors.dir/descriptor-set-layout.cpp.o" "CMakeFiles/ankh_descriptors.dir/descriptor-pool.cpp.o"
+/usr/bin/ranlib libankh_descriptors.a

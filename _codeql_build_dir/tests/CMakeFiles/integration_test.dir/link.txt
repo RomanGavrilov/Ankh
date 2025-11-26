@@ -1,0 +1,1 @@
+/home/runner/work/Ankh/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/integration_test.dir/link.d CMakeFiles/integration_test.dir/integration_test.cpp.o -o integration_test  /usr/lib/x86_64-linux-gnu/libgtest.a -lpthread
