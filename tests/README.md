@@ -2,6 +2,40 @@
 
 This directory contains integration tests for the Ankh Vulkan renderer.
 
+## Quick Start (One Command)
+
+### Windows
+
+After building Ankh, run from the `tests` directory:
+
+```cmd
+run_tests.bat
+```
+
+Or with a specific executable path:
+
+```cmd
+run_tests.bat C:\path\to\Ankh.exe
+```
+
+### Linux/macOS
+
+```bash
+python3 run_tests.py
+```
+
+Or with a specific executable path:
+
+```bash
+python3 run_tests.py /path/to/Ankh
+```
+
+The scripts automatically:
+- Create a Python virtual environment
+- Install pytest
+- Locate the Ankh executable
+- Run all tests
+
 ## Test Approach
 
 The integration tests run the Ankh application as a **separate process**, completely isolated from the test framework. This approach:
@@ -16,21 +50,35 @@ The integration tests run the Ankh application as a **separate process**, comple
 ### System Dependencies
 
 - Python 3.8+
-- pytest (`pip install pytest`)
 - Vulkan SDK and validation layers
-- X11 display (or Xvfb for headless testing)
-- `glslc` shader compiler
+- Display (X11 on Linux, or use Xvfb for headless)
+- `glslc` shader compiler (for building Ankh)
+
+### On Windows
+
+1. Install Python 3.8+ from https://www.python.org/downloads/
+2. Install the Vulkan SDK from https://vulkan.lunarg.com/sdk/home
+3. Build Ankh with CMake/Visual Studio
 
 ### On Ubuntu/Debian
 
 ```bash
-sudo apt-get install -y python3 python3-pip vulkan-validationlayers mesa-vulkan-drivers xvfb glslc
-pip install pytest
+sudo apt-get install -y python3 python3-pip python3-venv vulkan-validationlayers mesa-vulkan-drivers xvfb glslc
 ```
 
 ## Building the App
 
 Build the Ankh application first:
+
+### Windows (Visual Studio)
+
+```cmd
+mkdir build && cd build
+cmake .. -DBUILD_TESTS=ON
+cmake --build . --config Release
+```
+
+### Linux/macOS
 
 ```bash
 mkdir -p build && cd build
@@ -40,23 +88,37 @@ make
 
 ## Running Tests
 
-### With Real Display
+### Using the Test Runner Scripts (Recommended)
 
-If you have a display available:
+The test runner scripts handle everything automatically:
+
+**Windows:**
+```cmd
+cd tests
+run_tests.bat
+```
+
+**Linux/macOS:**
+```bash
+cd tests
+python3 run_tests.py
+```
+
+### Using CTest
 
 ```bash
 cd build
 ctest --output-on-failure
 ```
 
-Or run pytest directly:
+### Using pytest directly
 
 ```bash
-cd build
-python3 -m pytest ../tests/test_integration.py -v
+cd build/src
+python -m pytest ../../tests/test_integration.py -v
 ```
 
-### Headless (CI/Server)
+### Headless (CI/Server - Linux)
 
 For headless environments, use Xvfb with the lavapipe software Vulkan driver:
 
@@ -69,8 +131,8 @@ export DISPLAY=:99
 export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
 
 # Run tests
-cd build
-ctest --output-on-failure
+cd tests
+python3 run_tests.py
 ```
 
 ## Test Cases
