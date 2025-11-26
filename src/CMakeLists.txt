@@ -15,6 +15,7 @@ add_subdirectory(renderer)
 add_subdirectory(app)
 add_subdirectory(memory)
 add_subdirectory(commands)
+add_subdirectory(frame)
 
 add_executable(Ankh
     main.cpp

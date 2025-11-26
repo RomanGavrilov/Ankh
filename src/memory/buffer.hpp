@@ -1,5 +1,6 @@
 // src/memory/buffer.hpp
 #pragma once
+
 #include "utils/types.hpp"
 
 namespace ankh
@@ -8,25 +9,37 @@ namespace ankh
     class Buffer
     {
     public:
+        Buffer() = delete;
+
         Buffer(VkPhysicalDevice phys,
                VkDevice device,
                VkDeviceSize size,
                VkBufferUsageFlags usage,
-               VkMemoryPropertyFlags props);
+               VkMemoryPropertyFlags properties);
+
         ~Buffer();
 
+        Buffer(const Buffer &) = delete;
+        Buffer &operator=(const Buffer &) = delete;
+
+        Buffer(Buffer &&other) noexcept;
+        Buffer &operator=(Buffer &&other) noexcept;
+
         VkBuffer handle() const { return m_buffer; }
+        VkDeviceMemory memory() const { return m_memory; }
+        VkDevice device() const { return m_device; }
         VkDeviceSize size() const { return m_size; }
 
-        // Map/unmap for HOST_VISIBLE buffers
-        void *map(VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE);
+        void *map(VkDeviceSize offset, VkDeviceSize size);
         void unmap();
 
     private:
-        VkDevice m_device{};
-        VkBuffer m_buffer{};
-        VkDeviceMemory m_memory{};
-        VkDeviceSize m_size{};
+        void destroy();
+
+        VkDevice m_device{VK_NULL_HANDLE};
+        VkBuffer m_buffer{VK_NULL_HANDLE};
+        VkDeviceMemory m_memory{VK_NULL_HANDLE};
+        VkDeviceSize m_size{0};
     };
 
 } // namespace ankh

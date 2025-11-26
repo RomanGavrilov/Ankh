@@ -15,10 +15,11 @@
 #include "descriptors/descriptor-pool.hpp"
 #include "pipeline/pipeline-layout.hpp"
 #include "pipeline/graphics-pipeline.hpp"
-#include "sync/sync-primitives.hpp"
 #include "utils/types.hpp"
 #include "memory/buffer.hpp"
 #include "commands/command-pool.hpp"
+#include "commands/command-buffer.hpp"
+#include "frame/frame-context.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -35,29 +36,43 @@ namespace ankh
 
     Renderer::~Renderer()
     {
-        vkDeviceWaitIdle(m_device->handle());
-
-        cleanup_swapchain();
-
-        // Uniform buffers: still raw VkBuffer/VkDeviceMemory
-        for (size_t i = 0; i < m_uniform_buffers.size(); ++i)
+        // Make sure nothing is in flight
+        if (m_device)
         {
-            vkDestroyBuffer(m_device->handle(), m_uniform_buffers[i], nullptr);
-            vkFreeMemory(m_device->handle(), m_uniform_buffers_memory[i], nullptr);
+            vkDeviceWaitIdle(m_device->handle());
         }
 
+        // Destroy per-frame contexts first (command buffers, pools, UBOs, sync)
+        m_frames.clear();
+
+        // Destroy swapchain-dependent stuff
+        cleanup_swapchain();
+
+        // Descriptor pool (descriptor sets implicitly freed)
         m_descriptor_pool.reset();
-        m_sync.reset();
+
+        // Geometry buffers
         m_index_buffer.reset();
         m_vertex_buffer.reset();
-        m_command_pool.reset();
+
+        // Pipeline and layout
         m_graphics_pipeline.reset();
         m_pipeline_layout.reset();
+
+        // Descriptor layout
         m_descriptor_set_layout.reset();
+
+        // Render pass, swapchain, device, etc.
         m_render_pass.reset();
         m_swapchain.reset();
         m_device.reset();
-        delete m_physical_device;
+
+        if (m_physical_device)
+        {
+            delete m_physical_device;
+            m_physical_device = nullptr;
+        }
+
         m_surface.reset();
         m_debug_messenger.reset();
         m_instance.reset();
@@ -72,10 +87,12 @@ namespace ankh
         m_surface = std::make_unique<Surface>(m_instance->handle(), m_window->handle());
         m_physical_device = new PhysicalDevice(m_instance->handle(), m_surface->handle());
         m_device = std::make_unique<Device>(*m_physical_device);
+
         m_swapchain = std::make_unique<Swapchain>(*m_physical_device,
                                                   m_device->handle(),
                                                   m_surface->handle(),
                                                   m_window->handle());
+
         m_render_pass = std::make_unique<RenderPass>(m_device->handle(), m_swapchain->image_format());
 
         m_descriptor_set_layout = std::make_unique<DescriptorSetLayout>(m_device->handle());
@@ -85,26 +102,25 @@ namespace ankh
                                                                  m_pipeline_layout->handle());
 
         create_framebuffers();
-        create_command_pool();
         create_vertex_buffer();
         create_index_buffer();
-        create_uniform_buffers();
         create_descriptor_pool();
         allocate_descriptor_sets();
-        create_command_buffers();
-
-        m_sync = std::make_unique<SyncPrimitives>(m_device->handle(), kMaxFramesInFlight);
+        create_frames(); // per-frame command pool + cmd buffer + UBO + sync
     }
 
     void Renderer::create_framebuffers()
     {
+        m_framebuffers.clear();
+        m_framebuffers.reserve(m_swapchain->image_views().size());
+
         for (auto view : m_swapchain->image_views())
         {
-            m_framebuffers.push_back(
-                Framebuffer(m_device->handle(),
-                            m_render_pass->handle(),
-                            view,
-                            m_swapchain->extent()));
+            m_framebuffers.emplace_back(
+                m_device->handle(),
+                m_render_pass->handle(),
+                view,
+                m_swapchain->extent());
         }
     }
 
@@ -112,19 +128,10 @@ namespace ankh
     {
         m_framebuffers.clear();
         m_swapchain.reset();
+        m_render_pass.reset();
     }
 
-    void Renderer::create_command_pool()
-    {
-        QueueFamilyIndices indices = m_physical_device->queues();
-
-        VkCommandPoolCreateInfo ci{};
-        ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        ci.queueFamilyIndex = indices.graphicsFamily.value();
-
-        m_command_pool = std::make_unique<CommandPool>(m_device->handle(), indices.graphicsFamily.value());
-    }
+    // ==== helper for legacy raw buffer creation (used only by old UBO path, now unused) ====
 
     static uint32_t find_memory_type(VkPhysicalDevice phys,
                                      uint32_t type_filter,
@@ -174,41 +181,37 @@ namespace ankh
         vkBindBufferMemory(m_device->handle(), buffer, memory, 0);
     }
 
+    // ==== single-use copy using a temporary pool + command buffer ====
+
     void Renderer::copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size)
     {
-        VkCommandBufferAllocateInfo ai{};
-        ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        ai.commandPool = m_command_pool->handle();
-        ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        ai.commandBufferCount = 1;
+        QueueFamilyIndices indices = m_physical_device->queues();
+        uint32_t queueFamily = indices.graphicsFamily.value();
 
-        VkCommandBuffer cmd;
-        vkAllocateCommandBuffers(m_device->handle(), &ai, &cmd);
+        // Temporary per-copy pool + command buffer
+        CommandPool pool(m_device->handle(), queueFamily);
+        CommandBuffer cmd(m_device->handle(), pool.handle());
 
-        VkCommandBufferBeginInfo bi{};
-        bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        vkBeginCommandBuffer(cmd, &bi);
+        cmd.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
         VkBufferCopy copy{};
         copy.size = size;
-        vkCmdCopyBuffer(cmd, src, dst, 1, &copy);
+        vkCmdCopyBuffer(cmd.handle(), src, dst, 1, &copy);
 
-        vkEndCommandBuffer(cmd);
+        cmd.end();
 
         VkSubmitInfo submit{};
         submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        VkCommandBuffer raw = cmd.handle();
         submit.commandBufferCount = 1;
-        submit.pCommandBuffers = &cmd;
+        submit.pCommandBuffers = &raw;
 
         vkQueueSubmit(m_device->graphics_queue(), 1, &submit, VK_NULL_HANDLE);
         vkQueueWaitIdle(m_device->graphics_queue());
-
-        vkFreeCommandBuffers(m_device->handle(), m_command_pool->handle(), 1, &cmd);
+        // CommandBuffer / CommandPool are freed automatically via RAII
     }
 
-    // ===== changed to use std::unique_ptr<Buffer> =====
+    // ===== vertex/index buffers using Buffer RAII =====
 
     void Renderer::create_vertex_buffer()
     {
@@ -266,32 +269,7 @@ namespace ankh
         copy_buffer(staging.handle(), m_index_buffer->handle(), size);
     }
 
-    // ================================================
-
-    void Renderer::create_uniform_buffers()
-    {
-        VkDeviceSize size = sizeof(UniformBufferObject);
-
-        m_uniform_buffers.resize(kMaxFramesInFlight);
-        m_uniform_buffers_memory.resize(kMaxFramesInFlight);
-        m_uniform_buffers_mapped.resize(kMaxFramesInFlight);
-
-        for (int i = 0; i < kMaxFramesInFlight; ++i)
-        {
-            create_buffer(size,
-                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                          m_uniform_buffers[i],
-                          m_uniform_buffers_memory[i]);
-
-            vkMapMemory(m_device->handle(),
-                        m_uniform_buffers_memory[i],
-                        0,
-                        size,
-                        0,
-                        &m_uniform_buffers_mapped[i]);
-        }
-    }
+    // ===== descriptor pool + sets =====
 
     void Renderer::create_descriptor_pool()
     {
@@ -314,42 +292,32 @@ namespace ankh
         {
             throw std::runtime_error("failed to allocate descriptor sets");
         }
-
-        for (int i = 0; i < kMaxFramesInFlight; ++i)
-        {
-            VkDescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = m_uniform_buffers[i];
-            bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(UniformBufferObject);
-
-            VkWriteDescriptorSet write{};
-            write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            write.dstSet = m_descriptor_sets[i];
-            write.dstBinding = 0;
-            write.dstArrayElement = 0;
-            write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            write.descriptorCount = 1;
-            write.pBufferInfo = &bufferInfo;
-
-            vkUpdateDescriptorSets(m_device->handle(), 1, &write, 0, nullptr);
-        }
     }
 
-    void Renderer::create_command_buffers()
+    // ===== create per-frame contexts (pool + cmd buffer + UBO + sync) =====
+
+    void Renderer::create_frames()
     {
-        m_command_buffers.resize(kMaxFramesInFlight);
+        m_frames.clear();
+        m_frames.reserve(kMaxFramesInFlight);
 
-        VkCommandBufferAllocateInfo ai{};
-        ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        ai.commandPool = m_command_pool->handle();
-        ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        ai.commandBufferCount = static_cast<uint32_t>(m_command_buffers.size());
+        QueueFamilyIndices queues = m_physical_device->queues();
+        uint32_t graphicsFamily = queues.graphicsFamily.value();
+        VkDeviceSize uboSize = sizeof(UniformBufferObject);
 
-        if (vkAllocateCommandBuffers(m_device->handle(), &ai, m_command_buffers.data()) != VK_SUCCESS)
+        for (uint32_t i = 0; i < kMaxFramesInFlight; ++i)
         {
-            throw std::runtime_error("failed to allocate command buffers");
+            m_frames.emplace_back(
+                m_physical_device->handle(),
+                m_device->handle(),
+                graphicsFamily,
+                uboSize,
+                m_descriptor_sets[i] // FrameContext wires UBO → descriptor
+            );
         }
     }
+
+    // ===== command buffer recording =====
 
     void Renderer::record_command_buffer(VkCommandBuffer cmd, uint32_t image_index)
     {
@@ -369,7 +337,6 @@ namespace ankh
         VkRenderPassBeginInfo rp{};
         rp.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         rp.renderPass = m_render_pass->handle();
-
         rp.framebuffer = m_framebuffers[image_index].handle();
         rp.renderArea.offset = {0, 0};
         rp.renderArea.extent = m_swapchain->extent();
@@ -402,12 +369,13 @@ namespace ankh
         vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
         vkCmdBindIndexBuffer(cmd, m_index_buffer->handle(), 0, VK_INDEX_TYPE_UINT16);
 
+        VkDescriptorSet set = m_frames[m_current_frame].descriptor_set();
         vkCmdBindDescriptorSets(cmd,
                                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 m_pipeline_layout->handle(),
                                 0,
                                 1,
-                                &m_descriptor_sets[m_current_frame],
+                                &set,
                                 0,
                                 nullptr);
 
@@ -419,7 +387,9 @@ namespace ankh
             throw std::runtime_error("failed to record command buffer");
     }
 
-    void Renderer::update_uniform_buffer(uint32_t current_image)
+    // ===== UBO update using FrameContext's mapped pointer =====
+
+    void Renderer::update_uniform_buffer(FrameContext &frame)
     {
         static auto start = std::chrono::high_resolution_clock::now();
 
@@ -431,9 +401,12 @@ namespace ankh
         ubo.model = glm::rotate(glm::mat4(1.0f),
                                 time * glm::radians(5.0f),
                                 glm::vec3(0.0f, 0.0f, 1.0f));
+
+        // look at the origin from (2,2,2)
         ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
                                glm::vec3(0.0f, 0.0f, 0.0f),
                                glm::vec3(0.0f, 0.0f, 1.0f));
+
         ubo.proj = glm::perspective(glm::radians(45.0f),
                                     m_swapchain->extent().width /
                                         static_cast<float>(m_swapchain->extent().height),
@@ -441,22 +414,25 @@ namespace ankh
                                     10.0f);
         ubo.proj[1][1] *= -1;
 
-        std::memcpy(m_uniform_buffers_mapped[current_image], &ubo, sizeof(ubo));
+        std::memcpy(frame.uniform_mapped(), &ubo, sizeof(ubo));
     }
+
+    // ===== main frame loop using FrameContext =====
 
     void Renderer::draw_frame()
     {
-        auto &fences = m_sync->in_flight_fences();
-        auto &imgAvail = m_sync->image_available();
-        auto &renderFin = m_sync->render_finished();
+        auto &frame = m_frames[m_current_frame];
 
-        vkWaitForFences(m_device->handle(), 1, &fences[m_current_frame], VK_TRUE, UINT64_MAX);
+        VkFence fence = frame.in_flight_fence();
+
+        // Wait until this frame's command buffer is not in flight
+        vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, UINT64_MAX);
 
         uint32_t image_index = 0;
         VkResult result = vkAcquireNextImageKHR(m_device->handle(),
                                                 m_swapchain->handle(),
                                                 UINT64_MAX,
-                                                imgAvail[m_current_frame],
+                                                frame.image_available(),
                                                 VK_NULL_HANDLE,
                                                 &image_index);
 
@@ -470,33 +446,37 @@ namespace ankh
             throw std::runtime_error("failed to acquire swapchain image");
         }
 
-        update_uniform_buffer(m_current_frame);
+        update_uniform_buffer(frame);
 
-        vkResetFences(m_device->handle(), 1, &fences[m_current_frame]);
+        vkResetFences(m_device->handle(), 1, &fence);
 
-        vkResetCommandBuffer(m_command_buffers[m_current_frame], 0);
-        record_command_buffer(m_command_buffers[m_current_frame], image_index);
+        VkCommandBuffer cmd = frame.command_buffer();
+        vkResetCommandBuffer(cmd, 0);
+        record_command_buffer(cmd, image_index);
 
         VkPipelineStageFlags waitStages[] = {
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
+        VkSemaphore waitSem = frame.image_available();
+        VkSemaphore signalSem = frame.render_finished();
+
         VkSubmitInfo submit{};
         submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submit.waitSemaphoreCount = 1;
-        submit.pWaitSemaphores = &imgAvail[m_current_frame];
+        submit.pWaitSemaphores = &waitSem;
         submit.pWaitDstStageMask = waitStages;
         submit.commandBufferCount = 1;
-        submit.pCommandBuffers = &m_command_buffers[m_current_frame];
+        submit.pCommandBuffers = &cmd;
         submit.signalSemaphoreCount = 1;
-        submit.pSignalSemaphores = &renderFin[m_current_frame];
+        submit.pSignalSemaphores = &signalSem;
 
-        if (vkQueueSubmit(m_device->graphics_queue(), 1, &submit, fences[m_current_frame]) != VK_SUCCESS)
+        if (vkQueueSubmit(m_device->graphics_queue(), 1, &submit, fence) != VK_SUCCESS)
             throw std::runtime_error("failed to submit draw command buffer");
 
         VkPresentInfoKHR present{};
         present.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         present.waitSemaphoreCount = 1;
-        present.pWaitSemaphores = &renderFin[m_current_frame];
+        present.pWaitSemaphores = &signalSem;
 
         VkSwapchainKHR swapchains[] = {m_swapchain->handle()};
         present.swapchainCount = 1;
@@ -538,6 +518,7 @@ namespace ankh
                                                   m_window->handle());
         m_render_pass = std::make_unique<RenderPass>(m_device->handle(), m_swapchain->image_format());
         create_framebuffers();
+        // FrameContexts remain valid: they only depend on device/queue/UBO/descriptor sets
     }
 
     void Renderer::run()

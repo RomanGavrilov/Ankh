@@ -1,3 +1,4 @@
+// src/commands/command-pool.hpp
 #pragma once
 #include "utils/types.hpp"
 
@@ -8,15 +9,20 @@ namespace ankh
     {
     public:
         CommandPool(VkDevice device, uint32_t queueFamilyIndex);
-        CommandPool(const CommandPool&) = delete;
-        CommandPool& operator=(const CommandPool&) = delete;
         ~CommandPool();
 
-        VkCommandPool handle() const;
+        CommandPool(const CommandPool &) = delete;
+        CommandPool &operator=(const CommandPool &) = delete;
+
+        CommandPool(CommandPool &&) noexcept;
+        CommandPool &operator=(CommandPool &&) noexcept;
+
+        VkCommandPool handle() const { return m_pool; }
+        VkDevice device() const { return m_device; }
 
     private:
-        VkDevice m_device{};
-        VkCommandPool m_pool{};
+        VkDevice m_device{VK_NULL_HANDLE};
+        VkCommandPool m_pool{VK_NULL_HANDLE};
     };
 
 } // namespace ankh

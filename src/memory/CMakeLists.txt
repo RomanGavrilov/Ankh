@@ -1,8 +1,5 @@
 add_library(ankh_memory STATIC
     buffer.cpp
-    allocator.cpp
-    image.cpp
-    upload-context.cpp
 )
 
 target_include_directories(ankh_memory
@@ -13,5 +10,5 @@ target_include_directories(ankh_memory
 target_link_libraries(ankh_memory
     PUBLIC
         ankh_utils
-        ankh_core     # for Vulkan::Vulkan and VkDevice etc.
+        Vulkan::Vulkan
 )
