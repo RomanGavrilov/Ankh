@@ -26,6 +26,9 @@ import pytest
 # Timeout in seconds for app startup test
 STARTUP_TIMEOUT_SEC = 5
 
+# Timing tolerance in seconds for content rendering test
+TIMING_TOLERANCE_SEC = 1.0
+
 # Global to cache the executable path
 _ankh_executable_path = None
 
@@ -99,9 +102,14 @@ def run_app_with_timeout(timeout_sec: int) -> tuple[int, str, float]:
     """
     Run the Ankh application for a specified duration and capture output.
     
+    Args:
+        timeout_sec: How long to wait before terminating the app.
+    
     Returns:
-        tuple of (exit_code, stderr_output, elapsed_time_seconds)
-        exit_code: 0 if we terminated it, negative if crashed with signal, positive if exited
+        A tuple of (exit_code, stderr_output, elapsed_time_seconds):
+        - exit_code 0: We successfully terminated the app after timeout (success case)
+        - exit_code > 0: App exited on its own with this return code
+        - exit_code < 0: App crashed with a signal (e.g., SIGSEGV = -11)
     """
     ankh_path = get_ankh_path()
     
@@ -146,9 +154,16 @@ def run_app_with_timeout(timeout_sec: int) -> tuple[int, str, float]:
 
 
 def has_validation_errors(stderr_output: str) -> bool:
-    """Check if stderr contains Vulkan validation errors (case-insensitive)."""
+    """
+    Check if stderr contains Vulkan validation layer errors.
+    
+    Looks for specific patterns that indicate validation layer error messages,
+    such as "validation error" or "Validation Error" appearing as a phrase.
+    """
     lower_output = stderr_output.lower()
-    return "validation" in lower_output and "error" in lower_output
+    # Check for common validation error patterns
+    # Vulkan validation layers typically output "Validation Error:" or "validation error"
+    return "validation error" in lower_output or "vk_layer" in lower_output and "error" in lower_output
 
 
 class TestAppStartup:
@@ -178,7 +193,8 @@ class TestAppStartup:
         exit_code, stderr, elapsed = run_app_with_timeout(STARTUP_TIMEOUT_SEC)
         
         # If the app ran for close to the timeout, it was rendering
-        assert elapsed >= STARTUP_TIMEOUT_SEC - 1, (
+        min_expected_time = STARTUP_TIMEOUT_SEC - TIMING_TOLERANCE_SEC
+        assert elapsed >= min_expected_time, (
             f"Application exited too early ({elapsed:.1f}s), may not have rendered content\n"
             f"Stderr: {stderr}"
         )
