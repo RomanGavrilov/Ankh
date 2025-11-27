@@ -4,25 +4,95 @@ Integration tests for Ankh Vulkan renderer.
 
 Tests verify the app starts without validation errors, crashes, or rendering failures.
 Runs the app as a separate process with zero production code changes.
+
+Usage:
+    # Install pytest first (one time):
+    pip install pytest
+    
+    # Run tests (from repo root or tests directory):
+    pytest tests/test_integration.py -v
+    
+    # Or with explicit executable path:
+    pytest tests/test_integration.py -v --ankh-path=/path/to/Ankh.exe
 """
 
 import subprocess
 import time
 import os
+import sys
+from pathlib import Path
 import pytest
-
-# Path to Ankh executable (relative to build/src directory where tests run)
-ANKH_PATH = "./Ankh"
 
 # Timeout in seconds for app startup test
 STARTUP_TIMEOUT_SEC = 5
 
+# Global to cache the executable path
+_ankh_executable_path = None
 
-def get_ankh_path():
-    """Get the path to the Ankh executable."""
-    if os.path.exists(ANKH_PATH):
-        return ANKH_PATH
-    raise FileNotFoundError(f"Ankh executable not found at {ANKH_PATH}")
+
+def find_ankh_executable() -> Path:
+    """Find the Ankh executable in common build locations."""
+    # Get the tests directory (where this file is located)
+    tests_dir = Path(__file__).parent.resolve()
+    repo_root = tests_dir.parent
+    
+    # Also check current working directory
+    cwd = Path.cwd()
+    
+    # Common build paths to check
+    candidates = [
+        # Relative to current directory (if running from build/src)
+        cwd / "Ankh",
+        cwd / "Ankh.exe",
+        # Relative to repo root
+        repo_root / "build" / "src" / "Ankh",
+        repo_root / "build" / "src" / "Ankh.exe",
+        repo_root / "build" / "src" / "Release" / "Ankh.exe",
+        repo_root / "build" / "src" / "Debug" / "Ankh.exe",
+        # Visual Studio / CMake presets
+        repo_root / "out" / "build" / "x64-Debug" / "src" / "Ankh.exe",
+        repo_root / "out" / "build" / "x64-Release" / "src" / "Ankh.exe",
+        # Ninja builds
+        repo_root / "build" / "Ankh",
+        repo_root / "build" / "Ankh.exe",
+    ]
+    
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate.resolve()
+    
+    return None
+
+
+def get_ankh_path() -> str:
+    """Get the path to the Ankh executable with auto-detection."""
+    global _ankh_executable_path
+    
+    # Return cached path if available
+    if _ankh_executable_path is not None:
+        return str(_ankh_executable_path)
+    
+    # Check environment variable
+    env_path = os.environ.get("ANKH_EXECUTABLE")
+    if env_path:
+        path = Path(env_path)
+        if path.exists():
+            _ankh_executable_path = path.resolve()
+            return str(_ankh_executable_path)
+    
+    # Auto-detect
+    found_path = find_ankh_executable()
+    if found_path:
+        _ankh_executable_path = found_path
+        return str(_ankh_executable_path)
+    
+    raise FileNotFoundError(
+        "Ankh executable not found. Please either:\n"
+        "  1. Build the project first (cmake --build build)\n"
+        "  2. Run pytest from the build/src directory\n"
+        "  3. Set ANKH_EXECUTABLE environment variable\n"
+        "  4. Use --ankh-path option: pytest --ankh-path=/path/to/Ankh.exe"
+    )
 
 
 def run_app_with_timeout(timeout_sec: int) -> tuple[int, str, float]:

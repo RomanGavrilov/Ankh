@@ -2,39 +2,30 @@
 
 This directory contains integration tests for the Ankh Vulkan renderer.
 
-## Quick Start (One Command)
+## Quick Start
 
-### Windows
-
-After building Ankh, run from the `tests` directory:
-
-```cmd
-run_tests.bat
-```
-
-Or with a specific executable path:
-
-```cmd
-run_tests.bat C:\path\to\Ankh.exe
-```
-
-### Linux/macOS
+After building Ankh, install pytest and run:
 
 ```bash
-python3 run_tests.py
+pip install pytest
+pytest tests/test_integration.py -v
 ```
 
-Or with a specific executable path:
+The test automatically finds the Ankh executable in common build locations.
+
+### With explicit executable path
 
 ```bash
-python3 run_tests.py /path/to/Ankh
+pytest tests/test_integration.py -v --ankh-path=path/to/Ankh.exe
 ```
 
-The scripts automatically:
-- Create a Python virtual environment
-- Install pytest
-- Locate the Ankh executable
-- Run all tests
+Or using environment variable:
+
+```bash
+set ANKH_EXECUTABLE=path\to\Ankh.exe   # Windows
+export ANKH_EXECUTABLE=path/to/Ankh    # Linux/macOS
+pytest tests/test_integration.py -v
+```
 
 ## Test Approach
 
@@ -50,6 +41,7 @@ The integration tests run the Ankh application as a **separate process**, comple
 ### System Dependencies
 
 - Python 3.8+
+- pytest (`pip install pytest`)
 - Vulkan SDK and validation layers
 - Display (X11 on Linux, or use Xvfb for headless)
 - `glslc` shader compiler (for building Ankh)
@@ -63,7 +55,8 @@ The integration tests run the Ankh application as a **separate process**, comple
 ### On Ubuntu/Debian
 
 ```bash
-sudo apt-get install -y python3 python3-pip python3-venv vulkan-validationlayers mesa-vulkan-drivers xvfb glslc
+sudo apt-get install -y python3 python3-pip vulkan-validationlayers mesa-vulkan-drivers xvfb glslc
+pip install pytest
 ```
 
 ## Building the App
@@ -88,20 +81,14 @@ make
 
 ## Running Tests
 
-### Using the Test Runner Scripts (Recommended)
+### Using pytest (Recommended)
 
-The test runner scripts handle everything automatically:
-
-**Windows:**
-```cmd
-cd tests
-run_tests.bat
-```
-
-**Linux/macOS:**
 ```bash
-cd tests
-python3 run_tests.py
+# From repo root
+pytest tests/test_integration.py -v
+
+# Or with explicit path
+pytest tests/test_integration.py -v --ankh-path=build/src/Release/Ankh.exe
 ```
 
 ### Using CTest
@@ -109,13 +96,6 @@ python3 run_tests.py
 ```bash
 cd build
 ctest --output-on-failure
-```
-
-### Using pytest directly
-
-```bash
-cd build/src
-python -m pytest ../../tests/test_integration.py -v
 ```
 
 ### Headless (CI/Server - Linux)
@@ -131,8 +111,7 @@ export DISPLAY=:99
 export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
 
 # Run tests
-cd tests
-python3 run_tests.py
+pytest tests/test_integration.py -v
 ```
 
 ## Test Cases
