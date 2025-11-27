@@ -2,12 +2,44 @@
 
 This directory contains integration tests for the Ankh Vulkan renderer.
 
-## Quick Start
+## Quick Start (Automated)
 
-After building Ankh, install pytest and run:
+The easiest way to build and run tests is using the automated test runner:
 
 ```bash
 pip install pytest
+python tests/run_tests.py
+```
+
+This script automatically:
+1. Configures CMake if needed
+2. Builds the Ankh executable
+3. Runs pytest with the correct settings
+
+### Options
+
+```bash
+# Use Release build
+python tests/run_tests.py --build-type Release
+
+# Skip build step (use existing build)
+python tests/run_tests.py --skip-build
+
+# Custom build directory
+python tests/run_tests.py --build-dir path/to/build
+```
+
+## Manual Testing
+
+If you prefer to build and test separately:
+
+```bash
+# Build first
+mkdir -p build && cd build
+cmake ..
+cmake --build . --target Ankh
+
+# Then run tests
 pytest tests/test_integration.py -v
 ```
 
