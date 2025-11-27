@@ -91,10 +91,8 @@ def run_pytest(repo_root: Path, build_dir: Path, verbose: bool) -> int:
 
     if verbose:
         cmd.append("-v")
-    else:
-        cmd.append("-v")  # Always use verbose for better output
 
-    # The tests auto-detect the executable in build/src/, so no need to pass path
+    # The tests auto-detect the executable in common build locations
     return run_command(cmd, repo_root, "Running integration tests", check=False)
 
 
