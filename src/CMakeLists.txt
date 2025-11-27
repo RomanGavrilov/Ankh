@@ -31,7 +31,7 @@ target_link_libraries(Ankh
 add_custom_command(
     TARGET Ankh
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_SOURCE_DIR}/shaders/compile.cmake"
+    COMMAND ${CMAKE_COMMAND} -DDESTINATION_DIR=$<TARGET_FILE_DIR:Ankh>/shaders -P "${CMAKE_SOURCE_DIR}/shaders/compile.cmake"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/shaders"
             "$<TARGET_FILE_DIR:Ankh>/shaders"
