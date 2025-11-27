@@ -45,3 +45,11 @@
 
 # debug information files
 *.dwo
+
+# Python cache files
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Python virtual environment
+.venv/
