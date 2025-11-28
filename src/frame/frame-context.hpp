@@ -1,3 +1,4 @@
+// src/frame/frame-context.hpp
 #pragma once
 
 #include "utils/types.hpp"
@@ -29,7 +30,7 @@ namespace ankh
         FrameContext(FrameContext &&) noexcept;
         FrameContext &operator=(FrameContext &&) noexcept;
 
-        // accessors for Renderer
+        // Accessors
         VkCommandBuffer command_buffer() const;
         void *uniform_mapped() const { return m_uniform_mapped; }
         VkDescriptorSet descriptor_set() const { return m_descriptor_set; }
@@ -37,6 +38,10 @@ namespace ankh
         VkSemaphore image_available() const { return m_image_available; }
         VkSemaphore render_finished() const { return m_render_finished; }
         VkFence in_flight_fence() const { return m_in_flight; }
+
+        // NEW: manage command buffer lifecycle for this frame
+        VkCommandBuffer begin(); // reset + vkBeginCommandBuffer
+        void end();              // vkEndCommandBuffer
 
     private:
         VkDevice m_device{VK_NULL_HANDLE};

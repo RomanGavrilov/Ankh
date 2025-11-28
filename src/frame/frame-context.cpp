@@ -134,4 +134,33 @@ namespace ankh
         return m_cmd->handle();
     }
 
+    VkCommandBuffer FrameContext::begin()
+    {
+        VkCommandBuffer cmd = m_cmd->handle();
+
+        // Reset the command buffer for this frame
+        if (vkResetCommandBuffer(cmd, 0) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to reset command buffer");
+        }
+
+        VkCommandBufferBeginInfo bi{};
+        bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        if (vkBeginCommandBuffer(cmd, &bi) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to begin command buffer");
+        }
+
+        return cmd;
+    }
+
+    void FrameContext::end()
+    {
+        if (vkEndCommandBuffer(m_cmd->handle()) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to end command buffer");
+        }
+    }
+
 } // namespace ankh

@@ -274,13 +274,7 @@ namespace ankh
             throw std::runtime_error("invalid framebuffer index in record_command_buffer");
         }
 
-        VkCommandBufferBeginInfo bi{};
-        bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-        if (vkBeginCommandBuffer(cmd, &bi) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to begin command buffer");
-        }
+        auto &frame = m_frames[m_current_frame];
 
         VkRenderPassBeginInfo rp{};
         rp.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -317,7 +311,7 @@ namespace ankh
         vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
         vkCmdBindIndexBuffer(cmd, m_index_buffer->handle(), 0, VK_INDEX_TYPE_UINT16);
 
-        VkDescriptorSet set = m_frames[m_current_frame].descriptor_set();
+        VkDescriptorSet set = frame.descriptor_set();
         vkCmdBindDescriptorSets(cmd,
                                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 m_pipeline_layout->handle(),
@@ -330,9 +324,6 @@ namespace ankh
         vkCmdDrawIndexed(cmd, static_cast<uint32_t>(kIndices.size()), 1, 0, 0, 0);
 
         vkCmdEndRenderPass(cmd);
-
-        if (vkEndCommandBuffer(cmd) != VK_SUCCESS)
-            throw std::runtime_error("failed to record command buffer");
     }
 
     // ===== UBO update using FrameContext's mapped pointer =====
@@ -398,9 +389,9 @@ namespace ankh
 
         vkResetFences(m_device->handle(), 1, &fence);
 
-        VkCommandBuffer cmd = frame.command_buffer();
-        vkResetCommandBuffer(cmd, 0);
+        VkCommandBuffer cmd = frame.begin();
         record_command_buffer(cmd, image_index);
+        frame.end();
 
         VkPipelineStageFlags waitStages[] = {
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
