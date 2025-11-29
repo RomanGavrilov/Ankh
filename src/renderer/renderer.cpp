@@ -36,33 +36,30 @@ namespace ankh
 
     Renderer::~Renderer()
     {
-        // Make sure nothing is in flight
         if (m_device)
         {
             vkDeviceWaitIdle(m_device->handle());
         }
 
-        // Destroy per-frame contexts first (command buffers, pools, UBOs, sync)
+        // per-frame contexts
         m_frames.clear();
 
-        // Destroy swapchain-dependent stuff
+        // swapchain-dependent stuff
         cleanup_swapchain();
 
-        // Descriptor pool (descriptor sets implicitly freed)
+        // descriptor pool
         m_descriptor_pool.reset();
 
-        // Geometry buffers
+        // geometry buffers
         m_index_buffer.reset();
         m_vertex_buffer.reset();
 
-        // Pipeline and layout
+        // pipeline + layout + descriptors
         m_graphics_pipeline.reset();
         m_pipeline_layout.reset();
-
-        // Descriptor layout
         m_descriptor_set_layout.reset();
 
-        // Render pass, swapchain, device, etc.
+        // render pass, swapchain, device, etc.
         m_render_pass.reset();
         m_swapchain.reset();
         m_device.reset();
@@ -105,27 +102,21 @@ namespace ankh
         create_vertex_buffer();
         create_index_buffer();
         create_descriptor_pool();
-        create_frames();
+        create_frames(); // alloc descriptor sets + per-frame context
     }
 
     void Renderer::create_framebuffers()
     {
-        m_framebuffers.clear();
-        m_framebuffers.reserve(m_swapchain->image_views().size());
-
-        for (auto view : m_swapchain->image_views())
-        {
-            m_framebuffers.emplace_back(
-                m_device->handle(),
-                m_render_pass->handle(),
-                view,
-                m_swapchain->extent());
-        }
+        m_swapchain->create_framebuffers(m_render_pass->handle());
     }
 
     void Renderer::cleanup_swapchain()
     {
-        m_framebuffers.clear();
+        if (m_swapchain)
+        {
+            m_swapchain->destroy_framebuffers();
+        }
+
         m_swapchain.reset();
         m_render_pass.reset();
     }
@@ -137,7 +128,6 @@ namespace ankh
         QueueFamilyIndices indices = m_physical_device->queues();
         uint32_t queueFamily = indices.graphicsFamily.value();
 
-        // Temporary per-copy pool + command buffer
         CommandPool pool(m_device->handle(), queueFamily);
         CommandBuffer cmd(m_device->handle(), pool.handle());
 
@@ -157,16 +147,12 @@ namespace ankh
 
         vkQueueSubmit(m_device->graphics_queue(), 1, &submit, VK_NULL_HANDLE);
         vkQueueWaitIdle(m_device->graphics_queue());
-        // CommandBuffer / CommandPool are freed automatically via RAII
     }
-
-    // ===== vertex/index buffers using Buffer RAII =====
 
     void Renderer::create_vertex_buffer()
     {
         VkDeviceSize size = sizeof(Vertex) * kVertices.size();
 
-        // Staging buffer in host-visible memory
         Buffer staging(
             m_physical_device->handle(),
             m_device->handle(),
@@ -180,7 +166,6 @@ namespace ankh
             staging.unmap();
         }
 
-        // Device-local vertex buffer (owned via unique_ptr)
         m_vertex_buffer = std::make_unique<Buffer>(
             m_physical_device->handle(),
             m_device->handle(),
@@ -218,14 +203,10 @@ namespace ankh
         copy_buffer(staging.handle(), m_index_buffer->handle(), size);
     }
 
-    // ===== descriptor pool + sets =====
-
     void Renderer::create_descriptor_pool()
     {
         m_descriptor_pool = std::make_unique<DescriptorPool>(m_device->handle(), kMaxFramesInFlight);
     }
-
-    // ===== create per-frame contexts (pool + cmd buffer + UBO + sync) =====
 
     void Renderer::create_frames()
     {
@@ -236,7 +217,7 @@ namespace ankh
         uint32_t graphicsFamily = queues.graphicsFamily.value();
         VkDeviceSize uboSize = sizeof(UniformBufferObject);
 
-        // 1) Allocate descriptor sets (one per frame)
+        // allocate descriptor sets
         std::vector<VkDescriptorSetLayout> layouts(
             kMaxFramesInFlight,
             m_descriptor_set_layout->handle());
@@ -253,7 +234,6 @@ namespace ankh
             throw std::runtime_error("failed to allocate descriptor sets");
         }
 
-        // 2) Create one FrameContext per frame, each owning its descriptor set
         for (uint32_t i = 0; i < kMaxFramesInFlight; ++i)
         {
             m_frames.emplace_back(
@@ -265,11 +245,10 @@ namespace ankh
         }
     }
 
-    // ===== command buffer recording =====
-
     void Renderer::record_command_buffer(VkCommandBuffer cmd, uint32_t image_index)
     {
-        if (image_index >= m_framebuffers.size())
+        const auto &fbs = m_swapchain->framebuffers();
+        if (image_index >= fbs.size())
         {
             throw std::runtime_error("invalid framebuffer index in record_command_buffer");
         }
@@ -279,7 +258,7 @@ namespace ankh
         VkRenderPassBeginInfo rp{};
         rp.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         rp.renderPass = m_render_pass->handle();
-        rp.framebuffer = m_framebuffers[image_index].handle();
+        rp.framebuffer = m_swapchain->framebuffer(image_index).handle();
         rp.renderArea.offset = {0, 0};
         rp.renderArea.extent = m_swapchain->extent();
 
@@ -326,8 +305,6 @@ namespace ankh
         vkCmdEndRenderPass(cmd);
     }
 
-    // ===== UBO update using FrameContext's mapped pointer =====
-
     void Renderer::update_uniform_buffer(FrameContext &frame)
     {
         static auto start = std::chrono::high_resolution_clock::now();
@@ -340,12 +317,9 @@ namespace ankh
         ubo.model = glm::rotate(glm::mat4(1.0f),
                                 time * glm::radians(5.0f),
                                 glm::vec3(0.0f, 0.0f, 1.0f));
-
-        // look at the origin from (2,2,2)
         ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
                                glm::vec3(0.0f, 0.0f, 0.0f),
                                glm::vec3(0.0f, 0.0f, 1.0f));
-
         ubo.proj = glm::perspective(glm::radians(45.0f),
                                     m_swapchain->extent().width /
                                         static_cast<float>(m_swapchain->extent().height),
@@ -356,15 +330,12 @@ namespace ankh
         std::memcpy(frame.uniform_mapped(), &ubo, sizeof(ubo));
     }
 
-    // ===== main frame loop using FrameContext =====
-
     void Renderer::draw_frame()
     {
         auto &frame = m_frames[m_current_frame];
 
         VkFence fence = frame.in_flight_fence();
 
-        // Wait until this frame's command buffer is not in flight
         vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, UINT64_MAX);
 
         uint32_t image_index = 0;
@@ -457,7 +428,6 @@ namespace ankh
                                                   m_window->handle());
         m_render_pass = std::make_unique<RenderPass>(m_device->handle(), m_swapchain->image_format());
         create_framebuffers();
-        // FrameContexts remain valid: they only depend on device/queue/UBO/descriptor sets
     }
 
     void Renderer::run()

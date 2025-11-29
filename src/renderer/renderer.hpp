@@ -1,5 +1,6 @@
 // src/renderer/renderer.hpp
 #pragma once
+
 #include "utils/types.hpp"
 
 #include <memory>
@@ -40,8 +41,6 @@ namespace ankh
         void create_index_buffer();
 
         void create_descriptor_pool();
-
-        // Allocates descriptor sets internally and wires them to FrameContexts
         void create_frames();
 
         void record_command_buffer(VkCommandBuffer cmd, uint32_t image_index);
@@ -68,8 +67,6 @@ namespace ankh
         std::unique_ptr<DescriptorPool> m_descriptor_pool;
         std::unique_ptr<PipelineLayout> m_pipeline_layout;
         std::unique_ptr<GraphicsPipeline> m_graphics_pipeline;
-
-        std::vector<Framebuffer> m_framebuffers;
 
         std::unique_ptr<Buffer> m_vertex_buffer{};
         std::unique_ptr<Buffer> m_index_buffer{};
