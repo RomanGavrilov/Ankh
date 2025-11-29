@@ -24,6 +24,7 @@ namespace ankh
     class Framebuffer;
     class Buffer;
     class FrameContext;
+    class UploadContext; // ⬅️ new forward declaration
 
     class Renderer
     {
@@ -45,8 +46,6 @@ namespace ankh
 
         void record_command_buffer(VkCommandBuffer cmd, uint32_t image_index);
         void update_uniform_buffer(FrameContext &frame);
-
-        void copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);
 
         void draw_frame();
         void recreate_swapchain();
@@ -75,6 +74,8 @@ namespace ankh
 
         uint32_t m_current_frame = 0;
         bool m_framebuffer_resized = false;
+
+        std::unique_ptr<UploadContext> m_upload_context;
     };
 
 } // namespace ankh

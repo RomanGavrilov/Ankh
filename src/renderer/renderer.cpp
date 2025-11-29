@@ -20,6 +20,7 @@
 #include "commands/command-pool.hpp"
 #include "commands/command-buffer.hpp"
 #include "frame/frame-context.hpp"
+#include "memory/upload-context.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -85,6 +86,10 @@ namespace ankh
         m_physical_device = new PhysicalDevice(m_instance->handle(), m_surface->handle());
         m_device = std::make_unique<Device>(*m_physical_device);
 
+        m_upload_context = std::make_unique<UploadContext>(
+            m_device->handle(),
+            m_physical_device->queues().graphicsFamily.value());
+
         m_swapchain = std::make_unique<Swapchain>(*m_physical_device,
                                                   m_device->handle(),
                                                   m_surface->handle(),
@@ -121,34 +126,6 @@ namespace ankh
         m_render_pass.reset();
     }
 
-    // ==== single-use copy using a temporary pool + command buffer ====
-
-    void Renderer::copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size)
-    {
-        QueueFamilyIndices indices = m_physical_device->queues();
-        uint32_t queueFamily = indices.graphicsFamily.value();
-
-        CommandPool pool(m_device->handle(), queueFamily);
-        CommandBuffer cmd(m_device->handle(), pool.handle());
-
-        cmd.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-        VkBufferCopy copy{};
-        copy.size = size;
-        vkCmdCopyBuffer(cmd.handle(), src, dst, 1, &copy);
-
-        cmd.end();
-
-        VkSubmitInfo submit{};
-        submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        VkCommandBuffer raw = cmd.handle();
-        submit.commandBufferCount = 1;
-        submit.pCommandBuffers = &raw;
-
-        vkQueueSubmit(m_device->graphics_queue(), 1, &submit, VK_NULL_HANDLE);
-        vkQueueWaitIdle(m_device->graphics_queue());
-    }
-
     void Renderer::create_vertex_buffer()
     {
         VkDeviceSize size = sizeof(Vertex) * kVertices.size();
@@ -173,7 +150,11 @@ namespace ankh
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        copy_buffer(staging.handle(), m_vertex_buffer->handle(), size);
+        m_upload_context->copy_buffer(
+            m_device->graphics_queue(),
+            staging.handle(),
+            m_vertex_buffer->handle(),
+            size);
     }
 
     void Renderer::create_index_buffer()
@@ -200,7 +181,11 @@ namespace ankh
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        copy_buffer(staging.handle(), m_index_buffer->handle(), size);
+        m_upload_context->copy_buffer(
+            m_device->graphics_queue(),
+            staging.handle(),
+            m_index_buffer->handle(),
+            size);
     }
 
     void Renderer::create_descriptor_pool()

@@ -1,7 +1,8 @@
 # Ignore the build directory
 /build/
 /.vscode/
-
+summary.py
+summary.txt
 # Prerequisites
 *.d
 

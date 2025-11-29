@@ -1,5 +1,6 @@
 add_library(ankh_memory STATIC
     buffer.cpp
+    upload-context.cpp
 )
 
 target_include_directories(ankh_memory
