@@ -11,5 +11,7 @@ target_include_directories(ankh_memory
 target_link_libraries(ankh_memory
     PUBLIC
         ankh_utils
+        ankh_commands
         Vulkan::Vulkan
+        
 )

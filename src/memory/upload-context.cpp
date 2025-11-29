@@ -1,29 +1,21 @@
 // src/memory/upload-context.cpp
 #include "memory/upload-context.hpp"
+#include "commands/command-pool.hpp"
 #include <stdexcept>
 
 namespace ankh
 {
 
     UploadContext::UploadContext(VkDevice device, uint32_t queueFamilyIndex)
-        : m_device(device)
+        : m_pool(std::make_unique<CommandPool>(device, queueFamilyIndex))
     {
-        VkCommandPoolCreateInfo poolInfo{};
-        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-        poolInfo.queueFamilyIndex = queueFamilyIndex;
-
-        if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_pool) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to create upload command pool");
-        }
     }
 
     UploadContext::~UploadContext()
     {
         if (m_pool != VK_NULL_HANDLE)
         {
-            vkDestroyCommandPool(m_device, m_pool, nullptr);
+            vkDestroyCommandPool(m_pool->device(), m_pool->handle(), nullptr);
             m_pool = VK_NULL_HANDLE;
         }
     }
@@ -32,12 +24,12 @@ namespace ankh
     {
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.commandPool = m_pool;
+        allocInfo.commandPool = m_pool->handle();
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = 1;
 
         VkCommandBuffer cmd{};
-        if (vkAllocateCommandBuffers(m_device, &allocInfo, &cmd) != VK_SUCCESS)
+        if (vkAllocateCommandBuffers(m_pool->device(), &allocInfo, &cmd) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to allocate upload command buffer");
         }
@@ -56,6 +48,8 @@ namespace ankh
 
     void UploadContext::endAndSubmit(VkQueue queue, VkCommandBuffer cb)
     {
+        VkDevice device = m_pool->device();
+
         if (vkEndCommandBuffer(cb) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to end upload command buffer");
@@ -69,22 +63,22 @@ namespace ankh
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         VkFence fence{};
-        if (vkCreateFence(m_device, &fenceInfo, nullptr, &fence) != VK_SUCCESS)
+        if (vkCreateFence(device, &fenceInfo, nullptr, &fence) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to create upload fence");
         }
 
         if (vkQueueSubmit(queue, 1, &submitInfo, fence) != VK_SUCCESS)
         {
-            vkDestroyFence(m_device, fence, nullptr);
+            vkDestroyFence(device, fence, nullptr);
             throw std::runtime_error("Failed to submit upload command buffer");
         }
 
-        vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX);
-        vkDestroyFence(m_device, fence, nullptr);
+        vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+        vkDestroyFence(device, fence, nullptr);
 
-        vkFreeCommandBuffers(m_device, m_pool, 1, &cb);
-        vkResetCommandPool(m_device, m_pool, 0);
+        vkFreeCommandBuffers(device, m_pool->handle(), 1, &cb);
+        vkResetCommandPool(device, m_pool->handle(), 0);
     }
 
     void UploadContext::copy_buffer(VkQueue queue,

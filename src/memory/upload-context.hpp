@@ -1,10 +1,12 @@
 // src/memory/upload-context.hpp
 #pragma once
+#include <memory>
 #include "utils/types.hpp"
 
 namespace ankh
 {
 
+    class CommandPool;
     // Small helper for one-shot uploads / copies.
     // Owns a transient command pool in the given queue family.
     class UploadContext
@@ -30,8 +32,7 @@ namespace ankh
         void endAndSubmit(VkQueue queue, VkCommandBuffer cb);
 
     private:
-        VkDevice m_device{};
-        VkCommandPool m_pool{};
+        std::unique_ptr<CommandPool> m_pool;
     };
 
 } // namespace ankh
