@@ -4,23 +4,36 @@
 
 #include "platform/window.hpp"
 #include "platform/surface.hpp"
+
 #include "core/instance.hpp"
 #include "core/debug-messenger.hpp"
 #include "core/physical-device.hpp"
 #include "core/device.hpp"
+
 #include "swapchain/swapchain.hpp"
+
 #include "renderpass/render-pass.hpp"
 #include "renderpass/frame-buffer.hpp"
+
+#include "draw-pass.hpp"
+
 #include "descriptors/descriptor-set-layout.hpp"
 #include "descriptors/descriptor-pool.hpp"
+
 #include "pipeline/pipeline-layout.hpp"
 #include "pipeline/graphics-pipeline.hpp"
+
 #include "utils/types.hpp"
+
 #include "memory/buffer.hpp"
+#include "memory/upload-context.hpp"
+
 #include "commands/command-pool.hpp"
 #include "commands/command-buffer.hpp"
+
 #include "frame/frame-context.hpp"
-#include "memory/upload-context.hpp"
+
+
 
 #include <chrono>
 #include <cstring>
@@ -102,6 +115,11 @@ namespace ankh
         m_graphics_pipeline = std::make_unique<GraphicsPipeline>(m_device->handle(),
                                                                  m_render_pass->handle(),
                                                                  m_pipeline_layout->handle());
+        m_draw_pass = std::make_unique<DrawPass>(m_device->handle(),
+                                                 *m_swapchain,
+                                                 *m_render_pass,
+                                                 *m_graphics_pipeline,
+                                                 *m_pipeline_layout);
 
         create_framebuffers();
         create_vertex_buffer();
@@ -230,64 +248,17 @@ namespace ankh
         }
     }
 
-    void Renderer::record_command_buffer(VkCommandBuffer cmd, uint32_t image_index)
+    void Renderer::record_command_buffer(FrameContext &frame, uint32_t image_index)
     {
-        const auto &fbs = m_swapchain->framebuffers();
-        if (image_index >= fbs.size())
-        {
-            throw std::runtime_error("invalid framebuffer index in record_command_buffer");
-        }
 
-        auto &frame = m_frames[m_current_frame];
+        const uint32_t index_count = static_cast<uint32_t>(kIndices.size());
 
-        VkRenderPassBeginInfo rp{};
-        rp.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        rp.renderPass = m_render_pass->handle();
-        rp.framebuffer = m_swapchain->framebuffer(image_index).handle();
-        rp.renderArea.offset = {0, 0};
-        rp.renderArea.extent = m_swapchain->extent();
-
-        VkClearValue clear{};
-        clear.color = {{0.f, 0.f, 0.f, 1.f}};
-        rp.clearValueCount = 1;
-        rp.pClearValues = &clear;
-
-        vkCmdBeginRenderPass(cmd, &rp, VK_SUBPASS_CONTENTS_INLINE);
-
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphics_pipeline->handle());
-
-        VkViewport vp{};
-        vp.x = 0.f;
-        vp.y = 0.f;
-        vp.width = static_cast<float>(m_swapchain->extent().width);
-        vp.height = static_cast<float>(m_swapchain->extent().height);
-        vp.minDepth = 0.f;
-        vp.maxDepth = 1.f;
-        vkCmdSetViewport(cmd, 0, 1, &vp);
-
-        VkRect2D sc{};
-        sc.offset = {0, 0};
-        sc.extent = m_swapchain->extent();
-        vkCmdSetScissor(cmd, 0, 1, &sc);
-
-        VkBuffer vertexBuffers[] = {m_vertex_buffer->handle()};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(cmd, m_index_buffer->handle(), 0, VK_INDEX_TYPE_UINT16);
-
-        VkDescriptorSet set = frame.descriptor_set();
-        vkCmdBindDescriptorSets(cmd,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                m_pipeline_layout->handle(),
-                                0,
-                                1,
-                                &set,
-                                0,
-                                nullptr);
-
-        vkCmdDrawIndexed(cmd, static_cast<uint32_t>(kIndices.size()), 1, 0, 0, 0);
-
-        vkCmdEndRenderPass(cmd);
+        m_draw_pass->record(
+            frame,
+            image_index,
+            m_vertex_buffer->handle(),
+            m_index_buffer->handle(),
+            index_count);
     }
 
     void Renderer::update_uniform_buffer(FrameContext &frame)
@@ -345,9 +316,10 @@ namespace ankh
 
         vkResetFences(m_device->handle(), 1, &fence);
 
-        VkCommandBuffer cmd = frame.begin();
-        record_command_buffer(cmd, image_index);
-        frame.end();
+       
+        record_command_buffer(frame, image_index);
+
+        VkCommandBuffer cmd = frame.command_buffer();
 
         VkPipelineStageFlags waitStages[] = {
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};

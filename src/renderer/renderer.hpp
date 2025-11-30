@@ -24,7 +24,8 @@ namespace ankh
     class Framebuffer;
     class Buffer;
     class FrameContext;
-    class UploadContext; // ⬅️ new forward declaration
+    class UploadContext;
+    class DrawPass;
 
     class Renderer
     {
@@ -44,7 +45,7 @@ namespace ankh
         void create_descriptor_pool();
         void create_frames();
 
-        void record_command_buffer(VkCommandBuffer cmd, uint32_t image_index);
+        void record_command_buffer(FrameContext &frame, uint32_t image_index);
         void update_uniform_buffer(FrameContext &frame);
 
         void draw_frame();
@@ -76,6 +77,7 @@ namespace ankh
         bool m_framebuffer_resized = false;
 
         std::unique_ptr<UploadContext> m_upload_context;
+        std::unique_ptr<DrawPass> m_draw_pass; 
     };
 
 } // namespace ankh
