@@ -5,11 +5,13 @@ add_library(ankh_core STATIC
     debug-messenger.cpp
     physical-device.cpp
     device.cpp
+    context.cpp
 )
 
 target_link_libraries(ankh_core
     PUBLIC
         ankh_utils
+        ankh_platform
         Vulkan::Vulkan
 )
 
