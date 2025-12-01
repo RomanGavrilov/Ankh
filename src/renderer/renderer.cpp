@@ -33,6 +33,7 @@
 #include <cstring>
 #include <memory>
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -269,8 +270,7 @@ namespace ankh
         submit.signalSemaphoreCount = 1;
         submit.pSignalSemaphores = &signalSem;
 
-        if (vkQueueSubmit(m_context->graphics_queue(), 1, &submit, fence) != VK_SUCCESS)
-            throw std::runtime_error("failed to submit draw command buffer");
+        ANKH_VK_CHECK(vkQueueSubmit(m_context->graphics_queue(), 1, &submit, fence));
 
         VkPresentInfoKHR present{};
         present.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;

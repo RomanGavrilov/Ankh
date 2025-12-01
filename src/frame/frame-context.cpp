@@ -70,7 +70,9 @@ namespace ankh
     FrameContext::~FrameContext()
     {
         if (m_device == VK_NULL_HANDLE)
+        {
             return;
+        }
 
         if (m_uniform_buffer && m_uniform_mapped)
         {
@@ -117,58 +119,6 @@ namespace ankh
         other.m_image_available = VK_NULL_HANDLE;
         other.m_render_finished = VK_NULL_HANDLE;
         other.m_in_flight = VK_NULL_HANDLE;
-    }
-
-    FrameContext &FrameContext::operator=(FrameContext &&other) noexcept
-    {
-        if (this == &other)
-            return *this;
-
-        if (m_device != VK_NULL_HANDLE)
-        {
-            if (m_uniform_buffer && m_uniform_mapped)
-            {
-                m_uniform_buffer->unmap();
-                m_uniform_mapped = nullptr;
-            }
-
-            if (m_image_available != VK_NULL_HANDLE)
-            {
-                vkDestroySemaphore(m_device, m_image_available, nullptr);
-                m_image_available = VK_NULL_HANDLE;
-            }
-
-            if (m_render_finished != VK_NULL_HANDLE)
-            {
-                vkDestroySemaphore(m_device, m_render_finished, nullptr);
-                m_render_finished = VK_NULL_HANDLE;
-            }
-
-            if (m_in_flight != VK_NULL_HANDLE)
-            {
-                vkDestroyFence(m_device, m_in_flight, nullptr);
-                m_in_flight = VK_NULL_HANDLE;
-            }
-        }
-
-        m_device = other.m_device;
-        m_pool = std::move(other.m_pool);
-        m_cmd = std::move(other.m_cmd);
-        m_uniform_buffer = std::move(other.m_uniform_buffer);
-        m_uniform_mapped = other.m_uniform_mapped;
-        m_descriptor_set = other.m_descriptor_set;
-        m_image_available = other.m_image_available;
-        m_render_finished = other.m_render_finished;
-        m_in_flight = other.m_in_flight;
-
-        other.m_device = VK_NULL_HANDLE;
-        other.m_uniform_mapped = nullptr;
-        other.m_descriptor_set = VK_NULL_HANDLE;
-        other.m_image_available = VK_NULL_HANDLE;
-        other.m_render_finished = VK_NULL_HANDLE;
-        other.m_in_flight = VK_NULL_HANDLE;
-
-        return *this;
     }
 
     VkCommandBuffer FrameContext::command_buffer() const { return m_cmd ? m_cmd->handle() : VK_NULL_HANDLE; }
