@@ -19,6 +19,9 @@ namespace ankh
 
         VkCommandBuffer handle() const { return m_buffer; }
 
+        /**
+         * Internally uses VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT by default
+         */
         void begin(VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
         void end();
         void reset(VkCommandBufferResetFlags flags = 0);

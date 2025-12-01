@@ -1,7 +1,8 @@
+// src/frame/frame-context.cpp
 #include "frame/frame-context.hpp"
 
-#include "commands/command-pool.hpp"
 #include "commands/command-buffer.hpp"
+#include "commands/command-pool.hpp"
 #include "memory/buffer.hpp"
 
 #include <stdexcept>
@@ -9,31 +10,26 @@
 namespace ankh
 {
 
-    FrameContext::FrameContext(VkPhysicalDevice physicalDevice,
-                               VkDevice device,
-                               uint32_t graphicsQueueFamilyIndex,
-                               VkDeviceSize uniformBufferSize,
-                               VkDescriptorSet descriptorSet)
-        : m_device(device), m_descriptor_set(descriptorSet)
+    FrameContext::FrameContext(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t graphicsQueueFamilyIndex,
+                               VkDeviceSize uniformBufferSize, VkDescriptorSet descriptorSet)
+        : m_device(device)
+        , m_descriptor_set(descriptorSet)
     {
-        // 1) Per-frame command pool
+        // Command pool for this frame
         m_pool = std::make_unique<CommandPool>(m_device, graphicsQueueFamilyIndex);
 
-        // 2) Primary command buffer
+        // Command buffer for this frame
         m_cmd = std::make_unique<CommandBuffer>(m_device, m_pool->handle());
 
-        // 3) Per-frame uniform buffer (host visible)
-        m_uniform_buffer = std::make_unique<Buffer>(
-            physicalDevice,
-            m_device,
-            uniformBufferSize,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        // Per-frame uniform buffer (host visible & coherent)
+        m_uniform_buffer = std::make_unique<Buffer>(physicalDevice,
+                                                    m_device,
+                                                    uniformBufferSize,
+                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-        // Persistently map UBO
         m_uniform_mapped = m_uniform_buffer->map(0, uniformBufferSize);
 
-        // 4) Wire this UBO into this frame's descriptor set (binding = 0)
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = m_uniform_buffer->handle();
         bufferInfo.offset = 0;
@@ -42,7 +38,7 @@ namespace ankh
         VkWriteDescriptorSet write{};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write.dstSet = m_descriptor_set;
-        write.dstBinding = 0; // must match your DescriptorSetLayout
+        write.dstBinding = 0; // binding = 0 in your shader
         write.dstArrayElement = 0;
         write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         write.descriptorCount = 1;
@@ -50,62 +46,90 @@ namespace ankh
 
         vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
 
-        // 5) Per-frame sync
-        VkSemaphoreCreateInfo si{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        if (vkCreateSemaphore(m_device, &si, nullptr, &m_image_available) != VK_SUCCESS ||
-            vkCreateSemaphore(m_device, &si, nullptr, &m_render_finished) != VK_SUCCESS)
+        // Sync primitives for this frame
+        VkSemaphoreCreateInfo semInfo{};
+        semInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        if (vkCreateSemaphore(m_device, &semInfo, nullptr, &m_image_available) != VK_SUCCESS ||
+            vkCreateSemaphore(m_device, &semInfo, nullptr, &m_render_finished) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create semaphores for frame");
+            throw std::runtime_error("failed to create frame semaphores");
         }
 
-        VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-        fi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        if (vkCreateFence(m_device, &fi, nullptr, &m_in_flight) != VK_SUCCESS)
+        VkFenceCreateInfo fenceInfo{};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        // Start signaled so first frame doesn't block
+        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        if (vkCreateFence(m_device, &fenceInfo, nullptr, &m_in_flight) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create fence for frame");
+            throw std::runtime_error("failed to create frame fence");
         }
     }
 
     FrameContext::~FrameContext()
     {
-        if (!m_device)
-            return;
+        if (m_device == VK_NULL_HANDLE)
+            return; // moved-from or default constructed
 
-        if (m_uniform_buffer)
+        if (m_uniform_buffer && m_uniform_mapped)
         {
             m_uniform_buffer->unmap();
+            m_uniform_mapped = nullptr;
         }
 
-        if (m_image_available)
+        if (m_image_available != VK_NULL_HANDLE)
         {
             vkDestroySemaphore(m_device, m_image_available, nullptr);
             m_image_available = VK_NULL_HANDLE;
         }
-        if (m_render_finished)
+
+        if (m_render_finished != VK_NULL_HANDLE)
         {
             vkDestroySemaphore(m_device, m_render_finished, nullptr);
             m_render_finished = VK_NULL_HANDLE;
         }
-        if (m_in_flight)
+
+        if (m_in_flight != VK_NULL_HANDLE)
         {
             vkDestroyFence(m_device, m_in_flight, nullptr);
             m_in_flight = VK_NULL_HANDLE;
         }
 
-        // command buffer / pool / buffer are destroyed via unique_ptr
+        // CommandBuffer, CommandPool, Buffer are destroyed by their unique_ptrs
+        m_cmd.reset();
+        m_pool.reset();
+        m_uniform_buffer.reset();
+
+        m_device = VK_NULL_HANDLE;
     }
 
     FrameContext::FrameContext(FrameContext &&other) noexcept
+        : m_device(other.m_device)
+        , m_pool(std::move(other.m_pool))
+        , m_cmd(std::move(other.m_cmd))
+        , m_uniform_buffer(std::move(other.m_uniform_buffer))
+        , m_uniform_mapped(other.m_uniform_mapped)
+        , m_descriptor_set(other.m_descriptor_set)
+        , m_image_available(other.m_image_available)
+        , m_render_finished(other.m_render_finished)
+        , m_in_flight(other.m_in_flight)
     {
-        *this = std::move(other);
+        other.m_device = VK_NULL_HANDLE;
+        other.m_uniform_mapped = nullptr;
+        other.m_descriptor_set = VK_NULL_HANDLE;
+        other.m_image_available = VK_NULL_HANDLE;
+        other.m_render_finished = VK_NULL_HANDLE;
+        other.m_in_flight = VK_NULL_HANDLE;
     }
 
     FrameContext &FrameContext::operator=(FrameContext &&other) noexcept
     {
         if (this == &other)
+        {
             return *this;
+        }
 
-        // Destroy current
         this->~FrameContext();
 
         m_device = other.m_device;
@@ -114,7 +138,6 @@ namespace ankh
         m_uniform_buffer = std::move(other.m_uniform_buffer);
         m_uniform_mapped = other.m_uniform_mapped;
         m_descriptor_set = other.m_descriptor_set;
-
         m_image_available = other.m_image_available;
         m_render_finished = other.m_render_finished;
         m_in_flight = other.m_in_flight;
@@ -129,38 +152,15 @@ namespace ankh
         return *this;
     }
 
-    VkCommandBuffer FrameContext::command_buffer() const
-    {
-        return m_cmd->handle();
-    }
+    VkCommandBuffer FrameContext::command_buffer() const { return m_cmd ? m_cmd->handle() : VK_NULL_HANDLE; }
 
     VkCommandBuffer FrameContext::begin()
     {
-        VkCommandBuffer cmd = m_cmd->handle();
-
-        // Reset the command buffer for this frame
-        if (vkResetCommandBuffer(cmd, 0) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to reset command buffer");
-        }
-
-        VkCommandBufferBeginInfo bi{};
-        bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-        if (vkBeginCommandBuffer(cmd, &bi) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to begin command buffer");
-        }
-
-        return cmd;
+        m_cmd->reset();
+        m_cmd->begin();
+        return m_cmd->handle();
     }
 
-    void FrameContext::end()
-    {
-        if (vkEndCommandBuffer(m_cmd->handle()) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to end command buffer");
-        }
-    }
+    void FrameContext::end() { m_cmd->end(); }
 
 } // namespace ankh

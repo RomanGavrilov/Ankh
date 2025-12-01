@@ -8,24 +8,24 @@
 
 #include "swapchain/swapchain.hpp"
 
-#include "renderpass/render-pass.hpp"
 #include "renderpass/frame-buffer.hpp"
+#include "renderpass/render-pass.hpp"
 
 #include "draw-pass.hpp"
 
-#include "descriptors/descriptor-set-layout.hpp"
 #include "descriptors/descriptor-pool.hpp"
+#include "descriptors/descriptor-set-layout.hpp"
 
-#include "pipeline/pipeline-layout.hpp"
 #include "pipeline/graphics-pipeline.hpp"
+#include "pipeline/pipeline-layout.hpp"
 
 #include "utils/types.hpp"
 
 #include "memory/buffer.hpp"
 #include "memory/upload-context.hpp"
 
-#include "commands/command-pool.hpp"
 #include "commands/command-buffer.hpp"
+#include "commands/command-pool.hpp"
 
 #include "frame/frame-context.hpp"
 
@@ -37,10 +37,7 @@
 namespace ankh
 {
 
-    Renderer::Renderer()
-    {
-        init_vulkan();
-    }
+    Renderer::Renderer() { init_vulkan(); }
 
     Renderer::~Renderer()
     {
@@ -76,38 +73,24 @@ namespace ankh
         m_context = std::make_unique<Context>(m_window->handle());
 
         // Upload context: device + graphics queue family index
-        m_upload_context = std::make_unique<UploadContext>(
-            m_context->device_handle(),
-            m_context->queues().graphicsFamily.value());
+        m_upload_context = std::make_unique<UploadContext>(m_context->device_handle(), m_context->queues().graphicsFamily.value());
 
-        m_swapchain = std::make_unique<Swapchain>(
-            m_context->physical_device(),
-            m_context->device_handle(),
-            m_context->surface_handle(),
-            m_window->handle());
+        m_swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
+                                                  m_context->device_handle(),
+                                                  m_context->surface_handle(),
+                                                  m_window->handle());
 
-        m_render_pass = std::make_unique<RenderPass>(
-            m_context->device_handle(),
-            m_swapchain->image_format());
+        m_render_pass = std::make_unique<RenderPass>(m_context->device_handle(), m_swapchain->image_format());
 
-        m_descriptor_set_layout = std::make_unique<DescriptorSetLayout>(
-            m_context->device_handle());
+        m_descriptor_set_layout = std::make_unique<DescriptorSetLayout>(m_context->device_handle());
 
-        m_pipeline_layout = std::make_unique<PipelineLayout>(
-            m_context->device_handle(),
-            m_descriptor_set_layout->handle());
+        m_pipeline_layout = std::make_unique<PipelineLayout>(m_context->device_handle(), m_descriptor_set_layout->handle());
 
-        m_graphics_pipeline = std::make_unique<GraphicsPipeline>(
-            m_context->device_handle(),
-            m_render_pass->handle(),
-            m_pipeline_layout->handle());
+        m_graphics_pipeline =
+            std::make_unique<GraphicsPipeline>(m_context->device_handle(), m_render_pass->handle(), m_pipeline_layout->handle());
 
-        m_draw_pass = std::make_unique<DrawPass>(
-            m_context->device_handle(),
-            *m_swapchain,
-            *m_render_pass,
-            *m_graphics_pipeline,
-            *m_pipeline_layout);
+        m_draw_pass =
+            std::make_unique<DrawPass>(m_context->device_handle(), *m_swapchain, *m_render_pass, *m_graphics_pipeline, *m_pipeline_layout);
 
         create_framebuffers();
         create_vertex_buffer();
@@ -116,10 +99,7 @@ namespace ankh
         create_frames();
     }
 
-    void Renderer::create_framebuffers()
-    {
-        m_swapchain->create_framebuffers(m_render_pass->handle());
-    }
+    void Renderer::create_framebuffers() { m_swapchain->create_framebuffers(m_render_pass->handle()); }
 
     void Renderer::cleanup_swapchain()
     {
@@ -136,12 +116,11 @@ namespace ankh
     {
         VkDeviceSize size = sizeof(Vertex) * kVertices.size();
 
-        Buffer staging(
-            m_context->physical_device().handle(),
-            m_context->device_handle(),
-            size,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        Buffer staging(m_context->physical_device().handle(),
+                       m_context->device_handle(),
+                       size,
+                       VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         {
             void *data = staging.map(0, size);
@@ -149,30 +128,24 @@ namespace ankh
             staging.unmap();
         }
 
-        m_vertex_buffer = std::make_unique<Buffer>(
-            m_context->physical_device().handle(),
-            m_context->device_handle(),
-            size,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        m_vertex_buffer = std::make_unique<Buffer>(m_context->physical_device().handle(),
+                                                   m_context->device_handle(),
+                                                   size,
+                                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        m_upload_context->copy_buffer(
-            m_context->graphics_queue(),
-            staging.handle(),
-            m_vertex_buffer->handle(),
-            size);
+        m_upload_context->copy_buffer(m_context->graphics_queue(), staging.handle(), m_vertex_buffer->handle(), size);
     }
 
     void Renderer::create_index_buffer()
     {
         VkDeviceSize size = sizeof(uint16_t) * kIndices.size();
 
-        Buffer staging(
-            m_context->physical_device().handle(),
-            m_context->device_handle(),
-            size,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        Buffer staging(m_context->physical_device().handle(),
+                       m_context->device_handle(),
+                       size,
+                       VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         {
             void *data = staging.map(0, size);
@@ -180,25 +153,18 @@ namespace ankh
             staging.unmap();
         }
 
-        m_index_buffer = std::make_unique<Buffer>(
-            m_context->physical_device().handle(),
-            m_context->device_handle(),
-            size,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        m_index_buffer = std::make_unique<Buffer>(m_context->physical_device().handle(),
+                                                  m_context->device_handle(),
+                                                  size,
+                                                  VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        m_upload_context->copy_buffer(
-            m_context->graphics_queue(),
-            staging.handle(),
-            m_index_buffer->handle(),
-            size);
+        m_upload_context->copy_buffer(m_context->graphics_queue(), staging.handle(), m_index_buffer->handle(), size);
     }
 
     void Renderer::create_descriptor_pool()
     {
-        m_descriptor_pool = std::make_unique<DescriptorPool>(
-            m_context->device_handle(),
-            kMaxFramesInFlight);
+        m_descriptor_pool = std::make_unique<DescriptorPool>(m_context->device_handle(), kMaxFramesInFlight);
     }
 
     void Renderer::create_frames()
@@ -210,9 +176,7 @@ namespace ankh
         uint32_t graphicsFamily = queues.graphicsFamily.value();
         VkDeviceSize uboSize = sizeof(UniformBufferObject);
 
-        std::vector<VkDescriptorSetLayout> layouts(
-            kMaxFramesInFlight,
-            m_descriptor_set_layout->handle());
+        std::vector<VkDescriptorSetLayout> layouts(kMaxFramesInFlight, m_descriptor_set_layout->handle());
 
         VkDescriptorSetAllocateInfo ai{};
         ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -228,12 +192,7 @@ namespace ankh
 
         for (uint32_t i = 0; i < kMaxFramesInFlight; ++i)
         {
-            m_frames.emplace_back(
-                m_context->physical_device().handle(),
-                m_context->device_handle(),
-                graphicsFamily,
-                uboSize,
-                sets[i]);
+            m_frames.emplace_back(m_context->physical_device().handle(), m_context->device_handle(), graphicsFamily, uboSize, sets[i]);
         }
     }
 
@@ -242,32 +201,20 @@ namespace ankh
 
         const uint32_t index_count = static_cast<uint32_t>(kIndices.size());
 
-        m_draw_pass->record(
-            frame,
-            image_index,
-            m_vertex_buffer->handle(),
-            m_index_buffer->handle(),
-            index_count);
+        m_draw_pass->record(frame, image_index, m_vertex_buffer->handle(), m_index_buffer->handle(), index_count);
     }
 
     void Renderer::update_uniform_buffer(FrameContext &frame)
     {
         static auto start = std::chrono::high_resolution_clock::now();
 
-        float time = std::chrono::duration<float>(
-                         std::chrono::high_resolution_clock::now() - start)
-                         .count();
+        float time = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count();
 
         UniformBufferObject ubo{};
-        ubo.model = glm::rotate(glm::mat4(1.0f),
-                                time * glm::radians(5.0f),
-                                glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
-                               glm::vec3(0.0f, 0.0f, 0.0f),
-                               glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(5.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         ubo.proj = glm::perspective(glm::radians(45.0f),
-                                    m_swapchain->extent().width /
-                                        static_cast<float>(m_swapchain->extent().height),
+                                    m_swapchain->extent().width / static_cast<float>(m_swapchain->extent().height),
                                     0.1f,
                                     10.0f);
         ubo.proj[1][1] *= -1;
@@ -283,13 +230,12 @@ namespace ankh
         vkWaitForFences(m_context->device_handle(), 1, &fence, VK_TRUE, UINT64_MAX);
 
         uint32_t image_index = 0;
-        VkResult result = vkAcquireNextImageKHR(
-            m_context->device_handle(),
-            m_swapchain->handle(),
-            UINT64_MAX,
-            frame.image_available(),
-            VK_NULL_HANDLE,
-            &image_index);
+        VkResult result = vkAcquireNextImageKHR(m_context->device_handle(),
+                                                m_swapchain->handle(),
+                                                UINT64_MAX,
+                                                frame.image_available(),
+                                                VK_NULL_HANDLE,
+                                                &image_index);
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR)
         {
@@ -308,8 +254,7 @@ namespace ankh
 
         VkCommandBuffer cmd = frame.command_buffer();
 
-        VkPipelineStageFlags waitStages[] = {
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
         VkSemaphore waitSem = frame.image_available();
         VkSemaphore signalSem = frame.render_finished();
@@ -366,15 +311,12 @@ namespace ankh
 
         cleanup_swapchain();
 
-        m_swapchain = std::make_unique<Swapchain>(
-            m_context->physical_device(),
-            m_context->device_handle(),
-            m_context->surface_handle(),
-            m_window->handle());
+        m_swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
+                                                  m_context->device_handle(),
+                                                  m_context->surface_handle(),
+                                                  m_window->handle());
 
-        m_render_pass = std::make_unique<RenderPass>(
-            m_context->device_handle(),
-            m_swapchain->image_format());
+        m_render_pass = std::make_unique<RenderPass>(m_context->device_handle(), m_swapchain->image_format());
 
         create_framebuffers();
     }
