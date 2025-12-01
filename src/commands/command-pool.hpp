@@ -7,7 +7,7 @@ namespace ankh
 
     class CommandPool
     {
-    public:
+      public:
         CommandPool(VkDevice device, uint32_t queueFamilyIndex);
         ~CommandPool();
 
@@ -20,7 +20,7 @@ namespace ankh
         VkCommandPool handle() const { return m_pool; }
         VkDevice device() const { return m_device; }
 
-    private:
+      private:
         VkDevice m_device{VK_NULL_HANDLE};
         VkCommandPool m_pool{VK_NULL_HANDLE};
     };

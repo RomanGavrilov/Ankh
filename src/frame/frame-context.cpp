@@ -70,7 +70,7 @@ namespace ankh
     FrameContext::~FrameContext()
     {
         if (m_device == VK_NULL_HANDLE)
-            return; // moved-from or default constructed
+            return;
 
         if (m_uniform_buffer && m_uniform_mapped)
         {
@@ -96,12 +96,8 @@ namespace ankh
             m_in_flight = VK_NULL_HANDLE;
         }
 
-        // CommandBuffer, CommandPool, Buffer are destroyed by their unique_ptrs
-        m_cmd.reset();
-        m_pool.reset();
-        m_uniform_buffer.reset();
-
-        m_device = VK_NULL_HANDLE;
+        // unique_ptrs will clean up their own Vulkan resources:
+        // CommandPool, CommandBuffer, Buffer
     }
 
     FrameContext::FrameContext(FrameContext &&other) noexcept
@@ -126,11 +122,34 @@ namespace ankh
     FrameContext &FrameContext::operator=(FrameContext &&other) noexcept
     {
         if (this == &other)
-        {
             return *this;
-        }
 
-        this->~FrameContext();
+        if (m_device != VK_NULL_HANDLE)
+        {
+            if (m_uniform_buffer && m_uniform_mapped)
+            {
+                m_uniform_buffer->unmap();
+                m_uniform_mapped = nullptr;
+            }
+
+            if (m_image_available != VK_NULL_HANDLE)
+            {
+                vkDestroySemaphore(m_device, m_image_available, nullptr);
+                m_image_available = VK_NULL_HANDLE;
+            }
+
+            if (m_render_finished != VK_NULL_HANDLE)
+            {
+                vkDestroySemaphore(m_device, m_render_finished, nullptr);
+                m_render_finished = VK_NULL_HANDLE;
+            }
+
+            if (m_in_flight != VK_NULL_HANDLE)
+            {
+                vkDestroyFence(m_device, m_in_flight, nullptr);
+                m_in_flight = VK_NULL_HANDLE;
+            }
+        }
 
         m_device = other.m_device;
         m_pool = std::move(other.m_pool);

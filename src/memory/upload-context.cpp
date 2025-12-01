@@ -11,14 +11,7 @@ namespace ankh
     {
     }
 
-    UploadContext::~UploadContext()
-    {
-        if (m_pool != VK_NULL_HANDLE)
-        {
-            vkDestroyCommandPool(m_pool->device(), m_pool->handle(), nullptr);
-            m_pool = VK_NULL_HANDLE;
-        }
-    }
+    UploadContext::~UploadContext() = default;
 
     VkCommandBuffer UploadContext::begin()
     {
@@ -81,10 +74,7 @@ namespace ankh
         vkResetCommandPool(device, m_pool->handle(), 0);
     }
 
-    void UploadContext::copy_buffer(VkQueue queue,
-                                    VkBuffer src,
-                                    VkBuffer dst,
-                                    VkDeviceSize size)
+    void UploadContext::copy_buffer(VkQueue queue, VkBuffer src, VkBuffer dst, VkDeviceSize size)
     {
         VkCommandBuffer cmd = begin();
 

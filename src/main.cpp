@@ -1,5 +1,7 @@
-#include "app/application.hpp"
 #include <iostream>
+
+#include "app/application.hpp"
+#include "utils/logging.hpp"
 
 int main()
 {
@@ -7,6 +9,7 @@ int main()
 
     try
     {
+        ankh::log::init();
         app.run();
     }
     catch (const std::exception &e)
