@@ -1,13 +1,11 @@
 #include "renderpass/frame-buffer.hpp"
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
 
-    Framebuffer::Framebuffer(VkDevice device,
-                             VkRenderPass render_pass,
-                             VkImageView image_view,
-                             VkExtent2D extent)
+    Framebuffer::Framebuffer(VkDevice device, VkRenderPass render_pass, VkImageView image_view, VkExtent2D extent)
         : m_device(device)
     {
 
@@ -22,12 +20,12 @@ namespace ankh
         ci.height = extent.height;
         ci.layers = 1;
 
-        if (vkCreateFramebuffer(m_device, &ci, nullptr, &m_framebuffer) != VK_SUCCESS)
-            throw std::runtime_error("failed to create framebuffer");
+        ANKH_VK_CHECK(vkCreateFramebuffer(m_device, &ci, nullptr, &m_framebuffer));
     }
 
     Framebuffer::Framebuffer(Framebuffer &&other) noexcept
-        : m_device(other.m_device), m_framebuffer(other.m_framebuffer)
+        : m_device(other.m_device)
+        , m_framebuffer(other.m_framebuffer)
     {
         other.m_device = {};
         other.m_framebuffer = {};

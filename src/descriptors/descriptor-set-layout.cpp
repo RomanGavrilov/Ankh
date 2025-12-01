@@ -1,5 +1,6 @@
 #include "descriptors/descriptor-set-layout.hpp"
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -20,14 +21,15 @@ namespace ankh
         ci.bindingCount = 1;
         ci.pBindings = &ubo;
 
-        if (vkCreateDescriptorSetLayout(m_device, &ci, nullptr, &m_layout) != VK_SUCCESS)
-            throw std::runtime_error("failed to create descriptor set layout");
+        ANKH_VK_CHECK(vkCreateDescriptorSetLayout(m_device, &ci, nullptr, &m_layout));
     }
 
     DescriptorSetLayout::~DescriptorSetLayout()
     {
         if (m_layout)
+        {
             vkDestroyDescriptorSetLayout(m_device, m_layout, nullptr);
+        }
     }
 
 } // namespace ankh

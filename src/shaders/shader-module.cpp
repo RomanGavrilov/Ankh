@@ -1,6 +1,7 @@
 #include "shaders/shader-module.hpp"
 #include "utils/file-io.hpp"
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -16,8 +17,7 @@ namespace ankh
         ci.codeSize = code.size();
         ci.pCode = reinterpret_cast<const uint32_t *>(code.data());
 
-        if (vkCreateShaderModule(m_device, &ci, nullptr, &m_module) != VK_SUCCESS)
-            throw std::runtime_error("failed to create shader module: " + path);
+        ANKH_VK_CHECK(vkCreateShaderModule(m_device, &ci, nullptr, &m_module));
     }
 
     ShaderModule::~ShaderModule()

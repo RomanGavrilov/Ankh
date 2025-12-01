@@ -8,14 +8,12 @@
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
 
-    Swapchain::Swapchain(const PhysicalDevice &physicalDevice,
-                         VkDevice device,
-                         VkSurfaceKHR surface,
-                         GLFWwindow *window)
+    Swapchain::Swapchain(const PhysicalDevice &physicalDevice, VkDevice device, VkSurfaceKHR surface, GLFWwindow *window)
         : m_device(device)
     {
         create_swapchain(physicalDevice, surface, window);
@@ -39,10 +37,7 @@ namespace ankh
         }
     }
 
-    Swapchain::Swapchain(Swapchain &&other) noexcept
-    {
-        *this = std::move(other);
-    }
+    Swapchain::Swapchain(Swapchain &&other) noexcept { *this = std::move(other); }
 
     Swapchain &Swapchain::operator=(Swapchain &&other) noexcept
     {
@@ -69,9 +64,7 @@ namespace ankh
         return *this;
     }
 
-    void Swapchain::create_swapchain(const PhysicalDevice &physicalDevice,
-                                     VkSurfaceKHR surface,
-                                     GLFWwindow *window)
+    void Swapchain::create_swapchain(const PhysicalDevice &physicalDevice, VkSurfaceKHR surface, GLFWwindow *window)
     {
         VkPhysicalDevice phys = physicalDevice.handle();
 
@@ -82,8 +75,7 @@ namespace ankh
         VkExtent2D extent = choose_extent(support.capabilities, window);
 
         uint32_t imageCount = support.capabilities.minImageCount + 1;
-        if (support.capabilities.maxImageCount > 0 &&
-            imageCount > support.capabilities.maxImageCount)
+        if (support.capabilities.maxImageCount > 0 && imageCount > support.capabilities.maxImageCount)
         {
             imageCount = support.capabilities.maxImageCount;
         }
@@ -99,9 +91,7 @@ namespace ankh
         ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
         QueueFamilyIndices indices = physicalDevice.queues();
-        uint32_t queueFamilyIndices[] = {
-            indices.graphicsFamily.value(),
-            indices.presentFamily.value()};
+        uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
         if (indices.graphicsFamily != indices.presentFamily)
         {
@@ -122,10 +112,7 @@ namespace ankh
         ci.clipped = VK_TRUE;
         ci.oldSwapchain = VK_NULL_HANDLE;
 
-        if (vkCreateSwapchainKHR(m_device, &ci, nullptr, &m_swapchain) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create swapchain");
-        }
+        ANKH_VK_CHECK(vkCreateSwapchainKHR(m_device, &ci, nullptr, &m_swapchain));
 
         // Fetch images
         uint32_t actualImageCount = 0;
@@ -160,10 +147,7 @@ namespace ankh
             ci.subresourceRange.baseArrayLayer = 0;
             ci.subresourceRange.layerCount = 1;
 
-            if (vkCreateImageView(m_device, &ci, nullptr, &m_image_views[i]) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create swapchain image view");
-            }
+            ANKH_VK_CHECK(vkCreateImageView(m_device, &ci, nullptr, &m_image_views[i]));
         }
     }
 
@@ -174,11 +158,7 @@ namespace ankh
 
         for (auto view : m_image_views)
         {
-            m_framebuffers.emplace_back(
-                m_device,
-                renderPass,
-                view,
-                m_extent);
+            m_framebuffers.emplace_back(m_device, renderPass, view, m_extent);
         }
     }
 
@@ -189,8 +169,7 @@ namespace ankh
 
     // ==== helpers ====
 
-    Swapchain::SwapChainSupportDetails
-    Swapchain::query_swapchain_support(VkPhysicalDevice phys, VkSurfaceKHR surface) const
+    Swapchain::SwapChainSupportDetails Swapchain::query_swapchain_support(VkPhysicalDevice phys, VkSurfaceKHR surface) const
     {
         SwapChainSupportDetails details{};
 
@@ -215,13 +194,11 @@ namespace ankh
         return details;
     }
 
-    VkSurfaceFormatKHR
-    Swapchain::choose_surface_format(const std::vector<VkSurfaceFormatKHR> &available) const
+    VkSurfaceFormatKHR Swapchain::choose_surface_format(const std::vector<VkSurfaceFormatKHR> &available) const
     {
         for (const auto &f : available)
         {
-            if (f.format == VK_FORMAT_B8G8R8A8_SRGB &&
-                f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            if (f.format == VK_FORMAT_B8G8R8A8_SRGB && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             {
                 return f;
             }
@@ -230,8 +207,7 @@ namespace ankh
         return available[0];
     }
 
-    VkPresentModeKHR
-    Swapchain::choose_present_mode(const std::vector<VkPresentModeKHR> &available) const
+    VkPresentModeKHR Swapchain::choose_present_mode(const std::vector<VkPresentModeKHR> &available) const
     {
         for (const auto &m : available)
         {
@@ -244,9 +220,7 @@ namespace ankh
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
-    VkExtent2D
-    Swapchain::choose_extent(const VkSurfaceCapabilitiesKHR &caps,
-                             GLFWwindow *window) const
+    VkExtent2D Swapchain::choose_extent(const VkSurfaceCapabilitiesKHR &caps, GLFWwindow *window) const
     {
         if (caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
         {

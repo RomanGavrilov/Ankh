@@ -1,5 +1,6 @@
 #include "renderpass/render-pass.hpp"
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -44,8 +45,7 @@ namespace ankh
         ci.dependencyCount = 1;
         ci.pDependencies = &dep;
 
-        if (vkCreateRenderPass(m_device, &ci, nullptr, &m_render_pass) != VK_SUCCESS)
-            throw std::runtime_error("failed to create render pass");
+        ANKH_VK_CHECK(vkCreateRenderPass(m_device, &ci, nullptr, &m_render_pass));
     }
 
     RenderPass::~RenderPass()

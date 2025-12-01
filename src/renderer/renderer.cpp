@@ -186,10 +186,8 @@ namespace ankh
         ai.pSetLayouts = layouts.data();
 
         std::vector<VkDescriptorSet> sets(kMaxFramesInFlight);
-        if (vkAllocateDescriptorSets(m_context->device_handle(), &ai, sets.data()) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to allocate descriptor sets");
-        }
+
+        ANKH_VK_CHECK(vkAllocateDescriptorSets(m_context->device_handle(), &ai, sets.data()));
 
         for (uint32_t i = 0; i < kMaxFramesInFlight; ++i)
         {
