@@ -17,6 +17,11 @@ BreakBeforeParameters: true
 AllowAllArgumentsOnNextLine: false
 BinPackArguments: false
 
+
 NamespaceIndentation: All
+
+BinPackParameters: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
 
  

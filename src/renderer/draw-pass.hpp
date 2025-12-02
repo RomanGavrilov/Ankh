@@ -20,8 +20,12 @@ namespace ankh
                  const GraphicsPipeline& pipeline,
                  const PipelineLayout& layout);
 
-        // Record a full frame’s draw commands into the frame’s command buffer
-        void record(FrameContext& frame,
+        // Assumes:
+        //  - command buffer is already begun
+        //  - render pass is already active
+        //  - viewport/scissor already set
+        void record(VkCommandBuffer cmd,
+                    FrameContext& frame,
                     uint32_t image_index,
                     VkBuffer vertex_buffer,
                     VkBuffer index_buffer,

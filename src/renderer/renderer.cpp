@@ -197,10 +197,48 @@ namespace ankh
 
     void Renderer::record_command_buffer(FrameContext &frame, uint32_t image_index)
     {
+        VkCommandBuffer cmd = frame.begin();
 
+        // --- Begin render pass ---
+        VkRenderPassBeginInfo rp_info{};
+        rp_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        rp_info.renderPass = m_render_pass->handle();
+        rp_info.framebuffer = m_swapchain->framebuffer(image_index).handle();
+        rp_info.renderArea.offset = {0, 0};
+        rp_info.renderArea.extent = m_swapchain->extent();
+
+        VkClearValue clear_value{};
+        clear_value.color = {0.0f, 0.0f, 0.0f, 1.0f};
+        rp_info.clearValueCount = 1;
+        rp_info.pClearValues = &clear_value;
+
+        vkCmdBeginRenderPass(cmd, &rp_info, VK_SUBPASS_CONTENTS_INLINE);
+
+        // --- Viewport / scissor ---
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = static_cast<float>(m_swapchain->extent().width);
+        viewport.height = static_cast<float>(m_swapchain->extent().height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+        VkRect2D scissor{};
+        scissor.offset = {0, 0};
+        scissor.extent = m_swapchain->extent();
+        vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+        // --- Scene draw pass ---
         const uint32_t index_count = static_cast<uint32_t>(kIndices.size());
+        m_draw_pass->record(cmd, frame, image_index, m_vertex_buffer->handle(), m_index_buffer->handle(), index_count);
 
-        m_draw_pass->record(frame, image_index, m_vertex_buffer->handle(), m_index_buffer->handle(), index_count);
+        // Add additional passes (UI, debug, etc.) can be recorded here
+        // using the same cmd and render pass.
+
+        // --- End render pass + command buffer ---
+        vkCmdEndRenderPass(cmd);
+        frame.end();
     }
 
     void Renderer::update_uniform_buffer(FrameContext &frame)
