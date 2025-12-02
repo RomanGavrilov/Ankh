@@ -30,6 +30,7 @@ namespace ankh
     class FrameSync;
     class UiPass;
     class SceneRenderer;
+    class Mesh;
 
     class Renderer
     {
@@ -72,6 +73,7 @@ namespace ankh
         std::unique_ptr<DrawPass> m_draw_pass;
         std::unique_ptr<UiPass> m_ui_pass;
         std::unique_ptr<SceneRenderer> m_scene_renderer;
+        std::unique_ptr<Mesh> m_mesh;
         std::unique_ptr<FrameSync> m_frame_sync;
         bool m_framebuffer_resized = false;
     };

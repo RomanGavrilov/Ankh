@@ -13,6 +13,7 @@
 
 #include "draw-pass.hpp"
 #include "scene-renderer.hpp"
+#include "scene/mesh.hpp"
 #include "ui-pass.hpp"
 
 #include "descriptors/descriptor-pool.hpp"
@@ -102,6 +103,8 @@ namespace ankh
 
         m_scene_renderer = std::make_unique<SceneRenderer>();
 
+        m_mesh = std::make_unique<Mesh>(Mesh::make_colored_quad());
+
         create_framebuffers();
         create_vertex_buffer();
         create_index_buffer();
@@ -126,7 +129,8 @@ namespace ankh
 
     void Renderer::create_vertex_buffer()
     {
-        VkDeviceSize size = sizeof(Vertex) * kVertices.size();
+        const auto &verts = m_mesh->vertices();
+        VkDeviceSize size = sizeof(Vertex) * verts.size();
 
         Buffer staging(m_context->physical_device().handle(),
                        m_context->device_handle(),
@@ -136,7 +140,7 @@ namespace ankh
 
         {
             void *data = staging.map(0, size);
-            std::memcpy(data, kVertices.data(), static_cast<size_t>(size));
+            std::memcpy(data, verts.data(), static_cast<size_t>(size));
             staging.unmap();
         }
 
@@ -151,7 +155,8 @@ namespace ankh
 
     void Renderer::create_index_buffer()
     {
-        VkDeviceSize size = sizeof(uint16_t) * kIndices.size();
+        const auto &indices = m_mesh->indices();
+        VkDeviceSize size = sizeof(uint16_t) * indices.size();
 
         Buffer staging(m_context->physical_device().handle(),
                        m_context->device_handle(),
@@ -161,7 +166,7 @@ namespace ankh
 
         {
             void *data = staging.map(0, size);
-            std::memcpy(data, kIndices.data(), static_cast<size_t>(size));
+            std::memcpy(data, indices.data(), static_cast<size_t>(size));
             staging.unmap();
         }
 
@@ -241,7 +246,7 @@ namespace ankh
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
         // --- Scene draw pass ---
-        const uint32_t index_count = static_cast<uint32_t>(kIndices.size());
+        const uint32_t index_count = static_cast<uint32_t>(m_mesh->index_count());
         m_draw_pass->record(cmd, frame, image_index, m_vertex_buffer->handle(), m_index_buffer->handle(), index_count);
 
         // --- UI pass ---
