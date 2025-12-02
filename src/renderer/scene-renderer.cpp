@@ -38,6 +38,8 @@ namespace ankh
         ubo.view = m_camera->view();
         ubo.proj = m_camera->proj();
 
+        ubo.albedo = m_material->albedo();
+
         // Write into mapped UBO
         std::memcpy(frame.uniform_mapped(), &ubo, sizeof(ubo));
 

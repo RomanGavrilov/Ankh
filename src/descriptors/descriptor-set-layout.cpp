@@ -15,7 +15,7 @@ namespace ankh
         ubo.binding = 0;
         ubo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         ubo.descriptorCount = 1;
-        ubo.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        ubo.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         ubo.pImmutableSamplers = nullptr;
 
         // Binding 1: combined image sampler (fragment shader)

@@ -20,7 +20,7 @@ namespace ankh
         const glm::vec4 &albedo() const { return m_albedo; }
 
       private:
-        glm::vec4 m_albedo{1.0f, 1.0f, 1.0f, 1.0f};
+        glm::vec4 m_albedo{1.0f, 0.7f, 0.2f, 1.0f}; // default: orange
     };
 
 } // namespace ankh
