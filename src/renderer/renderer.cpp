@@ -53,33 +53,33 @@ namespace ankh
             vkDeviceWaitIdle(m_context->device_handle());
         }
 
-        // Destroy frame resources first (they use buffers, descriptors, etc.)
-        m_frames.clear();
+        // // Destroy frame resources first (they use buffers, descriptors, etc.)
+        // m_frames.clear();
 
-        // 🔹 Destroy texture BEFORE we destroy the device / context
-        m_texture.reset();
+        // // 🔹 Destroy texture BEFORE we destroy the device / context
+        // m_texture.reset();
 
-        // Then swapchain-dependent & pipeline stuff, etc.
-        cleanup_swapchain();
+        // // Then swapchain-dependent & pipeline stuff, etc.
+        // cleanup_swapchain();
 
-        // Any other GPU resources:
-        m_index_buffer.reset();
-        m_vertex_buffer.reset();
-        m_graphics_pipeline.reset();
-        m_pipeline_layout.reset();
-        m_descriptor_set_layout.reset();
-        m_descriptor_pool.reset();
+        // // Any other GPU resources:
+        // m_index_buffer.reset();
+        // m_vertex_buffer.reset();
+        // m_graphics_pipeline.reset();
+        // m_pipeline_layout.reset();
+        // m_descriptor_set_layout.reset();
+        // m_descriptor_pool.reset();
 
-        // Upload context, passes, scene renderer, etc. (they may own device children)
-        m_upload_context.reset();
-        m_draw_pass.reset();
-        m_ui_pass.reset();
-        m_scene_renderer.reset();
-        m_mesh.reset();
+        // // Upload context, passes, scene renderer, etc. (they may own device children)
+        // m_upload_context.reset();
+        // m_draw_pass.reset();
+        // m_ui_pass.reset();
+        // m_scene_renderer.reset();
+        // m_mesh.reset();
 
-        // Finally: context (destroys VkDevice) and window
-        m_context.reset();
-        m_window.reset();
+        // // Finally: context (destroys VkDevice) and window
+        // m_context.reset();
+        // m_window.reset();
     }
 
     void Renderer::init_vulkan()

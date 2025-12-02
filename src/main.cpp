@@ -5,11 +5,10 @@
 
 int main()
 {
-    ankh::Application app;
-
     try
     {
         ankh::log::init();
+        ankh::Application app;
         app.run();
     }
     catch (const std::exception &e)
