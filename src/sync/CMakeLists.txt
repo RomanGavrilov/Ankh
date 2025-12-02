@@ -2,6 +2,7 @@
 
 add_library(ankh_sync STATIC
     sync-primitives.cpp
+    frame-sync.cpp
 )
 
 target_link_libraries(ankh_sync

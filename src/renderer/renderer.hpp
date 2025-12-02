@@ -27,16 +27,17 @@ namespace ankh
     class FrameContext;
     class UploadContext;
     class DrawPass;
+    class FrameSync;
 
     class Renderer
     {
-    public:
+      public:
         Renderer();
         ~Renderer();
 
         void run();
 
-    private:
+      private:
         void init_vulkan();
         void create_framebuffers();
 
@@ -53,7 +54,7 @@ namespace ankh
         void recreate_swapchain();
         void cleanup_swapchain();
 
-    private:
+      private:
         std::unique_ptr<Window> m_window;
         std::unique_ptr<Context> m_context;
         std::unique_ptr<Swapchain> m_swapchain;
@@ -65,10 +66,10 @@ namespace ankh
         std::unique_ptr<Buffer> m_vertex_buffer{};
         std::unique_ptr<Buffer> m_index_buffer{};
         std::vector<FrameContext> m_frames;
-        uint32_t m_current_frame = 0;
-        bool m_framebuffer_resized = false;
         std::unique_ptr<UploadContext> m_upload_context;
         std::unique_ptr<DrawPass> m_draw_pass;
+        std::unique_ptr<FrameSync> m_frame_sync;
+        bool m_framebuffer_resized = false;
     };
 
 } // namespace ankh

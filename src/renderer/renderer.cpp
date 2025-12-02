@@ -29,6 +29,8 @@
 
 #include "frame/frame-context.hpp"
 
+#include "sync/frame-sync.hpp"
+
 #include <chrono>
 #include <cstring>
 #include <memory>
@@ -98,6 +100,8 @@ namespace ankh
         create_index_buffer();
         create_descriptor_pool();
         create_frames();
+
+        m_frame_sync = std::make_unique<FrameSync>(kMaxFramesInFlight);
     }
 
     void Renderer::create_framebuffers() { m_swapchain->create_framebuffers(m_render_pass->handle()); }
@@ -261,7 +265,7 @@ namespace ankh
 
     void Renderer::draw_frame()
     {
-        auto &frame = m_frames[m_current_frame];
+        auto &frame = m_frames[m_frame_sync->current()];
 
         VkFence fence = frame.in_flight_fence();
         vkWaitForFences(m_context->device_handle(), 1, &fence, VK_TRUE, UINT64_MAX);
@@ -330,7 +334,7 @@ namespace ankh
             throw std::runtime_error("failed to present swapchain image");
         }
 
-        m_current_frame = (m_current_frame + 1) % kMaxFramesInFlight;
+        m_frame_sync->advance();
     }
 
     void Renderer::recreate_swapchain()
