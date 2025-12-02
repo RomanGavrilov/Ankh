@@ -1,12 +1,12 @@
 #pragma once
-#include "utils/Types.hpp"
+#include "utils/types.hpp"
 
 namespace ankh
 {
 
     class Mesh
     {
-    public:
+      public:
         Mesh();
         ~Mesh();
     };

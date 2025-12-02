@@ -12,6 +12,7 @@
 #include "renderpass/render-pass.hpp"
 
 #include "draw-pass.hpp"
+#include "scene-renderer.hpp"
 #include "ui-pass.hpp"
 
 #include "descriptors/descriptor-pool.hpp"
@@ -98,6 +99,8 @@ namespace ankh
 
         m_ui_pass =
             std::make_unique<UiPass>(m_context->device_handle(), *m_swapchain, *m_render_pass, *m_graphics_pipeline, *m_pipeline_layout);
+
+        m_scene_renderer = std::make_unique<SceneRenderer>();
 
         create_framebuffers();
         create_vertex_buffer();
@@ -255,16 +258,7 @@ namespace ankh
 
         float time = std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count();
 
-        UniformBufferObject ubo{};
-        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(5.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.proj = glm::perspective(glm::radians(45.0f),
-                                    m_swapchain->extent().width / static_cast<float>(m_swapchain->extent().height),
-                                    0.1f,
-                                    10.0f);
-        ubo.proj[1][1] *= -1;
-
-        std::memcpy(frame.uniform_mapped(), &ubo, sizeof(ubo));
+        m_scene_renderer->update_frame(frame, *m_swapchain, time);
     }
 
     void Renderer::draw_frame()

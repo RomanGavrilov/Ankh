@@ -2,6 +2,7 @@
 #include "memory/upload-context.hpp"
 #include "commands/command-pool.hpp"
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -22,19 +23,14 @@ namespace ankh
         allocInfo.commandBufferCount = 1;
 
         VkCommandBuffer cmd{};
-        if (vkAllocateCommandBuffers(m_pool->device(), &allocInfo, &cmd) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to allocate upload command buffer");
-        }
+
+        ANKH_VK_CHECK(vkAllocateCommandBuffers(m_pool->device(), &allocInfo, &cmd));
 
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-        if (vkBeginCommandBuffer(cmd, &beginInfo) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to begin upload command buffer");
-        }
+        ANKH_VK_CHECK(vkBeginCommandBuffer(cmd, &beginInfo));
 
         return cmd;
     }
@@ -43,10 +39,7 @@ namespace ankh
     {
         VkDevice device = m_pool->device();
 
-        if (vkEndCommandBuffer(cb) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to end upload command buffer");
-        }
+        ANKH_VK_CHECK(vkEndCommandBuffer(cb));
 
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -56,16 +49,10 @@ namespace ankh
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         VkFence fence{};
-        if (vkCreateFence(device, &fenceInfo, nullptr, &fence) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to create upload fence");
-        }
 
-        if (vkQueueSubmit(queue, 1, &submitInfo, fence) != VK_SUCCESS)
-        {
-            vkDestroyFence(device, fence, nullptr);
-            throw std::runtime_error("Failed to submit upload command buffer");
-        }
+        ANKH_VK_CHECK(vkCreateFence(device, &fenceInfo, nullptr, &fence));
+
+        ANKH_VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, fence));
 
         vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
         vkDestroyFence(device, fence, nullptr);
