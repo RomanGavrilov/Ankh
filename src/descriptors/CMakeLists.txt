@@ -3,6 +3,7 @@
 add_library(ankh_descriptors STATIC
     descriptor-set-layout.cpp
     descriptor-pool.cpp
+    descriptor-writer.cpp
 )
 
 target_link_libraries(ankh_descriptors

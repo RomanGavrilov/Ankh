@@ -3,6 +3,7 @@
 
 #include "commands/command-buffer.hpp"
 #include "commands/command-pool.hpp"
+#include "descriptors/descriptor-writer.hpp"
 #include "memory/buffer.hpp"
 
 #include <stdexcept>
@@ -35,38 +36,21 @@ namespace ankh
 
         m_uniform_mapped = m_uniform_buffer->map(0, uniformBufferSize);
 
-        // 🔹 Descriptor writes: binding 0 = UBO, binding 1 = texture
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = m_uniform_buffer->handle();
-        bufferInfo.offset = 0;
-        bufferInfo.range = uniformBufferSize;
+        // Update descriptor set for this frame
+        DescriptorWriter writer{m_device};
 
-        VkDescriptorImageInfo imageInfo{};
-        imageInfo.sampler = textureSampler;
-        imageInfo.imageView = textureView;
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        writer.writeUniformBuffer(m_descriptor_set,
+                                  m_uniform_buffer->handle(),
+                                  uniformBufferSize,
+                                  0 // binding 0
+        );
 
-        VkWriteDescriptorSet writes[2]{};
-
-        // Binding 0: UBO
-        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[0].dstSet = m_descriptor_set;
-        writes[0].dstBinding = 0;
-        writes[0].dstArrayElement = 0;
-        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        writes[0].descriptorCount = 1;
-        writes[0].pBufferInfo = &bufferInfo;
-
-        // Binding 1: combined image sampler
-        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[1].dstSet = m_descriptor_set;
-        writes[1].dstBinding = 1;
-        writes[1].dstArrayElement = 0;
-        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        writes[1].descriptorCount = 1;
-        writes[1].pImageInfo = &imageInfo;
-
-        vkUpdateDescriptorSets(m_device, 2, writes, 0, nullptr);
+        writer.writeCombinedImageSampler(m_descriptor_set,
+                                         textureView,
+                                         textureSampler,
+                                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                         1 // binding 1
+        );
 
         // Sync primitives...
         VkSemaphoreCreateInfo semInfo{};

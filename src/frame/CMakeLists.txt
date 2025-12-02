@@ -12,5 +12,6 @@ target_link_libraries(ankh_frame
         ankh_utils
         ankh_commands
         ankh_memory
+        ankh_descriptors
         Vulkan::Vulkan
 )
