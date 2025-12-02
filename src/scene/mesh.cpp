@@ -13,10 +13,18 @@ namespace ankh
 
     Mesh Mesh::make_colored_quad()
     {
-        // Reuse your existing static geometry for now.
-        // Later you can remove kVertices/kIndices and define them here.
-        std::vector<Vertex> verts(kVertices.begin(), kVertices.end());
-        std::vector<uint16_t> inds(kIndices.begin(), kIndices.end());
+        std::vector<Vertex> verts = {
+            // pos              // color
+            {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}}, // bottom-left  (red)
+            {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},  // bottom-right (green)
+            {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},   // top-right    (blue)
+            {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}},  // top-left     (white)
+        };
+
+        std::vector<uint16_t> inds = {0, 1, 2, 2, 3, 0};
+
+        std::vector<Vertex> vertices(verts.begin(), verts.end());
+        std::vector<uint16_t> indices(inds.begin(), inds.end());
         return Mesh{std::move(verts), std::move(inds)};
     }
 

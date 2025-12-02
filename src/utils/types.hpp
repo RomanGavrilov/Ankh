@@ -58,7 +58,4 @@ namespace ankh
         alignas(16) glm::mat4 proj;
     };
 
-    extern const std::vector<Vertex> kVertices;
-    extern const std::vector<uint16_t> kIndices;
-
 } // namespace ankh
