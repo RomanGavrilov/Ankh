@@ -16,8 +16,13 @@ namespace ankh
       public:
         FrameContext() = default;
 
-        FrameContext(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t graphicsQueueFamilyIndex, VkDeviceSize uniformBufferSize,
-                     VkDescriptorSet descriptorSet);
+        FrameContext(VkPhysicalDevice physicalDevice,
+                     VkDevice device,
+                     uint32_t graphicsQueueFamilyIndex,
+                     VkDeviceSize uniformBufferSize,
+                     VkDescriptorSet descriptorSet,
+                     VkImageView textureView,
+                     VkSampler textureSampler);
 
         ~FrameContext();
 

@@ -31,6 +31,7 @@ namespace ankh
     class UiPass;
     class SceneRenderer;
     class Mesh;
+    class Texture;
 
     class Renderer
     {
@@ -48,6 +49,7 @@ namespace ankh
         void create_index_buffer();
 
         void create_descriptor_pool();
+        void create_texture();
         void create_frames();
 
         void record_command_buffer(FrameContext &frame, uint32_t image_index);
@@ -66,16 +68,16 @@ namespace ankh
         std::unique_ptr<DescriptorPool> m_descriptor_pool;
         std::unique_ptr<PipelineLayout> m_pipeline_layout;
         std::unique_ptr<GraphicsPipeline> m_graphics_pipeline;
-        std::unique_ptr<Buffer> m_vertex_buffer{};
-        std::unique_ptr<Buffer> m_index_buffer{};
-        std::vector<FrameContext> m_frames;
+        std::unique_ptr<Buffer> m_vertex_buffer;
+        std::unique_ptr<Buffer> m_index_buffer;
         std::unique_ptr<UploadContext> m_upload_context;
         std::unique_ptr<DrawPass> m_draw_pass;
         std::unique_ptr<UiPass> m_ui_pass;
         std::unique_ptr<SceneRenderer> m_scene_renderer;
         std::unique_ptr<Mesh> m_mesh;
+        std::unique_ptr<Texture> m_texture;
+        std::vector<FrameContext> m_frames;
         std::unique_ptr<FrameSync> m_frame_sync;
-        bool m_framebuffer_resized = false;
     };
 
 } // namespace ankh

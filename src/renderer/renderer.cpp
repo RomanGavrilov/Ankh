@@ -25,6 +25,7 @@
 #include "utils/types.hpp"
 
 #include "memory/buffer.hpp"
+#include "memory/texture.hpp"
 #include "memory/upload-context.hpp"
 
 #include "commands/command-buffer.hpp"
@@ -52,21 +53,31 @@ namespace ankh
             vkDeviceWaitIdle(m_context->device_handle());
         }
 
+        // Destroy frame resources first (they use buffers, descriptors, etc.)
         m_frames.clear();
 
+        // 🔹 Destroy texture BEFORE we destroy the device / context
+        m_texture.reset();
+
+        // Then swapchain-dependent & pipeline stuff, etc.
         cleanup_swapchain();
 
-        m_descriptor_pool.reset();
+        // Any other GPU resources:
         m_index_buffer.reset();
         m_vertex_buffer.reset();
-
         m_graphics_pipeline.reset();
         m_pipeline_layout.reset();
         m_descriptor_set_layout.reset();
+        m_descriptor_pool.reset();
 
-        m_draw_pass.reset();
+        // Upload context, passes, scene renderer, etc. (they may own device children)
         m_upload_context.reset();
+        m_draw_pass.reset();
+        m_ui_pass.reset();
+        m_scene_renderer.reset();
+        m_mesh.reset();
 
+        // Finally: context (destroys VkDevice) and window
         m_context.reset();
         m_window.reset();
     }
@@ -109,6 +120,7 @@ namespace ankh
         create_vertex_buffer();
         create_index_buffer();
         create_descriptor_pool();
+        create_texture();
         create_frames();
 
         m_frame_sync = std::make_unique<FrameSync>(kMaxFramesInFlight);
@@ -184,6 +196,73 @@ namespace ankh
         m_descriptor_pool = std::make_unique<DescriptorPool>(m_context->device_handle(), kMaxFramesInFlight);
     }
 
+    void Renderer::create_texture()
+    {
+        // Tiny 2x2 checkerboard (white/black) in RGBA8
+        const uint32_t texWidth = 2;
+        const uint32_t texHeight = 2;
+        const VkDeviceSize imageSize = texWidth * texHeight * 4; // 4 bytes per pixel
+
+        const std::array<uint8_t, 16> pixels = {// row 0: white, black
+                                                255,
+                                                255,
+                                                255,
+                                                255, // RGBA
+                                                0,
+                                                0,
+                                                0,
+                                                255,
+                                                // row 1: black, white
+                                                0,
+                                                0,
+                                                0,
+                                                255,
+                                                255,
+                                                255,
+                                                255,
+                                                255};
+
+        // Staging buffer
+        Buffer staging(m_context->physical_device().handle(),
+                       m_context->device_handle(),
+                       imageSize,
+                       VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        {
+            void *data = staging.map(0, imageSize);
+            std::memcpy(data, pixels.data(), static_cast<size_t>(imageSize));
+            staging.unmap();
+        }
+
+        // Device-local texture
+        m_texture = std::make_unique<Texture>(m_context->physical_device().handle(),
+                                              m_context->device_handle(),
+                                              texWidth,
+                                              texHeight,
+                                              VK_FORMAT_R8G8B8A8_UNORM,
+                                              VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                              VK_IMAGE_ASPECT_COLOR_BIT);
+
+        // Upload via UploadContext
+        VkQueue graphicsQueue = m_context->graphics_queue();
+
+        m_upload_context->transition_image_layout(graphicsQueue,
+                                                  m_texture->image(),
+                                                  VK_IMAGE_ASPECT_COLOR_BIT,
+                                                  VK_IMAGE_LAYOUT_UNDEFINED,
+                                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        m_upload_context->copy_buffer_to_image(graphicsQueue, staging.handle(), m_texture->image(), texWidth, texHeight);
+
+        m_upload_context->transition_image_layout(graphicsQueue,
+                                                  m_texture->image(),
+                                                  VK_IMAGE_ASPECT_COLOR_BIT,
+                                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+
     void Renderer::create_frames()
     {
         m_frames.clear();
@@ -202,12 +281,21 @@ namespace ankh
         ai.pSetLayouts = layouts.data();
 
         std::vector<VkDescriptorSet> sets(kMaxFramesInFlight);
-
-        ANKH_VK_CHECK(vkAllocateDescriptorSets(m_context->device_handle(), &ai, sets.data()));
+        if (vkAllocateDescriptorSets(m_context->device_handle(), &ai, sets.data()) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to allocate descriptor sets");
+        }
 
         for (uint32_t i = 0; i < kMaxFramesInFlight; ++i)
         {
-            m_frames.emplace_back(m_context->physical_device().handle(), m_context->device_handle(), graphicsFamily, uboSize, sets[i]);
+            m_frames.emplace_back(m_context->physical_device().handle(),
+                                  m_context->device_handle(),
+                                  graphicsFamily,
+                                  uboSize,
+                                  sets[i],
+                                  m_texture->view(),   // image view
+                                  m_texture->sampler() // sampler
+            );
         }
     }
 
@@ -327,9 +415,9 @@ namespace ankh
 
         result = vkQueuePresentKHR(m_context->present_queue(), &present);
 
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_framebuffer_resized)
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_window->framebuffer_resized())
         {
-            m_framebuffer_resized = false;
+            m_window->set_framebuffer_resized(false);
             recreate_swapchain();
         }
         else if (result != VK_SUCCESS)

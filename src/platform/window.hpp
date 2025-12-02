@@ -1,13 +1,13 @@
 #pragma once
-#include <string>
 #include "utils/types.hpp"
+#include <string>
 
 namespace ankh
 {
 
     class Window
     {
-    public:
+      public:
         Window(const std::string &title, uint32_t width, uint32_t height);
         ~Window();
 
@@ -15,7 +15,7 @@ namespace ankh
         bool framebuffer_resized() const { return m_framebuffer_resized; }
         void set_framebuffer_resized(bool v) { m_framebuffer_resized = v; }
 
-    private:
+      private:
         GLFWwindow *m_window = nullptr;
         bool m_framebuffer_resized = false;
     };

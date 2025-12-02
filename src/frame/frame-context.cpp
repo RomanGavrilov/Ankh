@@ -6,22 +6,27 @@
 #include "memory/buffer.hpp"
 
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
 
-    FrameContext::FrameContext(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t graphicsQueueFamilyIndex,
-                               VkDeviceSize uniformBufferSize, VkDescriptorSet descriptorSet)
+    FrameContext::FrameContext(VkPhysicalDevice physicalDevice,
+                               VkDevice device,
+                               uint32_t graphicsQueueFamilyIndex,
+                               VkDeviceSize uniformBufferSize,
+                               VkDescriptorSet descriptorSet,
+                               VkImageView textureView,
+                               VkSampler textureSampler)
         : m_device(device)
         , m_descriptor_set(descriptorSet)
     {
-        // Command pool for this frame
+        // Command pool & buffer
         m_pool = std::make_unique<CommandPool>(m_device, graphicsQueueFamilyIndex);
 
-        // Command buffer for this frame
         m_cmd = std::make_unique<CommandBuffer>(m_device, m_pool->handle());
 
-        // Per-frame uniform buffer (host visible & coherent)
+        // Per-frame UBO
         m_uniform_buffer = std::make_unique<Buffer>(physicalDevice,
                                                     m_device,
                                                     uniformBufferSize,
@@ -30,23 +35,40 @@ namespace ankh
 
         m_uniform_mapped = m_uniform_buffer->map(0, uniformBufferSize);
 
+        // 🔹 Descriptor writes: binding 0 = UBO, binding 1 = texture
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = m_uniform_buffer->handle();
         bufferInfo.offset = 0;
         bufferInfo.range = uniformBufferSize;
 
-        VkWriteDescriptorSet write{};
-        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write.dstSet = m_descriptor_set;
-        write.dstBinding = 0; // binding = 0 in your shader
-        write.dstArrayElement = 0;
-        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        write.descriptorCount = 1;
-        write.pBufferInfo = &bufferInfo;
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.sampler = textureSampler;
+        imageInfo.imageView = textureView;
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-        vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
+        VkWriteDescriptorSet writes[2]{};
 
-        // Sync primitives for this frame
+        // Binding 0: UBO
+        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[0].dstSet = m_descriptor_set;
+        writes[0].dstBinding = 0;
+        writes[0].dstArrayElement = 0;
+        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        writes[0].descriptorCount = 1;
+        writes[0].pBufferInfo = &bufferInfo;
+
+        // Binding 1: combined image sampler
+        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[1].dstSet = m_descriptor_set;
+        writes[1].dstBinding = 1;
+        writes[1].dstArrayElement = 0;
+        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[1].descriptorCount = 1;
+        writes[1].pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(m_device, 2, writes, 0, nullptr);
+
+        // Sync primitives...
         VkSemaphoreCreateInfo semInfo{};
         semInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -58,13 +80,9 @@ namespace ankh
 
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        // Start signaled so first frame doesn't block
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        if (vkCreateFence(m_device, &fenceInfo, nullptr, &m_in_flight) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create frame fence");
-        }
+        ANKH_VK_CHECK(vkCreateFence(m_device, &fenceInfo, nullptr, &m_in_flight));
     }
 
     FrameContext::~FrameContext()
