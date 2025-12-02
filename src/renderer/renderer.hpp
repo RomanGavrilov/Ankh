@@ -28,6 +28,7 @@ namespace ankh
     class UploadContext;
     class DrawPass;
     class FrameSync;
+    class UiPass;
 
     class Renderer
     {
@@ -68,6 +69,7 @@ namespace ankh
         std::vector<FrameContext> m_frames;
         std::unique_ptr<UploadContext> m_upload_context;
         std::unique_ptr<DrawPass> m_draw_pass;
+        std::unique_ptr<UiPass> m_ui_pass;
         std::unique_ptr<FrameSync> m_frame_sync;
         bool m_framebuffer_resized = false;
     };

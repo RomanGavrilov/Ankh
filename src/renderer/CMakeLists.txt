@@ -3,6 +3,7 @@
 add_library(ankh_renderer STATIC
     renderer.cpp
     draw-pass.cpp
+    ui-pass.cpp
 )
 
 target_link_libraries(ankh_renderer

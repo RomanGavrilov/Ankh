@@ -12,6 +12,7 @@
 #include "renderpass/render-pass.hpp"
 
 #include "draw-pass.hpp"
+#include "ui-pass.hpp"
 
 #include "descriptors/descriptor-pool.hpp"
 #include "descriptors/descriptor-set-layout.hpp"
@@ -94,6 +95,9 @@ namespace ankh
 
         m_draw_pass =
             std::make_unique<DrawPass>(m_context->device_handle(), *m_swapchain, *m_render_pass, *m_graphics_pipeline, *m_pipeline_layout);
+
+        m_ui_pass =
+            std::make_unique<UiPass>(m_context->device_handle(), *m_swapchain, *m_render_pass, *m_graphics_pipeline, *m_pipeline_layout);
 
         create_framebuffers();
         create_vertex_buffer();
@@ -237,8 +241,8 @@ namespace ankh
         const uint32_t index_count = static_cast<uint32_t>(kIndices.size());
         m_draw_pass->record(cmd, frame, image_index, m_vertex_buffer->handle(), m_index_buffer->handle(), index_count);
 
-        // Add additional passes (UI, debug, etc.) can be recorded here
-        // using the same cmd and render pass.
+        // --- UI pass ---
+        m_ui_pass->record(cmd, frame, image_index, m_vertex_buffer->handle(), m_index_buffer->handle(), index_count);
 
         // --- End render pass + command buffer ---
         vkCmdEndRenderPass(cmd);
