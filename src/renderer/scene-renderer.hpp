@@ -1,14 +1,15 @@
 // src/renderer/scene-renderer.hpp
 #pragma once
 
-#include <memory>
 #include "utils/types.hpp"
+#include <memory>
 
 namespace ankh
 {
     class FrameContext;
     class Swapchain;
     class Camera;
+    class Material;
 
     class SceneRenderer
     {
@@ -25,6 +26,7 @@ namespace ankh
 
       private:
         std::unique_ptr<Camera> m_camera;
+        std::unique_ptr<Material> m_material;
     };
 
 } // namespace ankh

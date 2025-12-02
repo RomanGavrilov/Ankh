@@ -3,7 +3,7 @@
 add_library(ankh_scene STATIC
     camera.cpp
     mesh.cpp
-    # material.cpp
+    material.cpp
 )
 
 target_include_directories(ankh_scene
