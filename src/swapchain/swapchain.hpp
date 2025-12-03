@@ -1,9 +1,10 @@
 // src/swapchain/swapchain.hpp
 #pragma once
 
-#include "utils/types.hpp"
 #include "renderpass/frame-buffer.hpp"
+#include "utils/types.hpp"
 
+#include <memory>
 #include <vector>
 
 struct GLFWwindow;
@@ -12,14 +13,12 @@ namespace ankh
 {
 
     class PhysicalDevice;
+    class Image;
 
     class Swapchain
     {
-    public:
-        Swapchain(const PhysicalDevice &physicalDevice,
-                  VkDevice device,
-                  VkSurfaceKHR surface,
-                  GLFWwindow *window);
+      public:
+        Swapchain(const PhysicalDevice &physicalDevice, VkDevice device, VkSurfaceKHR surface, GLFWwindow *window);
 
         ~Swapchain();
 
@@ -42,15 +41,18 @@ namespace ankh
         // Called after render pass exists / changes
         void create_framebuffers(VkRenderPass renderPass);
         void destroy_framebuffers();
+        VkImageView depth_view() const;
+        VkFormat depth_format() const { return m_depth_format; }
 
-    private:
-        void create_swapchain(const PhysicalDevice &physicalDevice,
-                              VkSurfaceKHR surface,
-                              GLFWwindow *window);
+      private:
+        void create_swapchain(const PhysicalDevice &physicalDevice, VkSurfaceKHR surface, GLFWwindow *window);
 
         void create_image_views();
 
-        // Helpers
+        // Helpers for depth resources
+        void create_depth_resources(const PhysicalDevice &physicalDevice);
+        VkFormat find_depth_format(const PhysicalDevice &physicalDevice) const;
+
         struct SwapChainSupportDetails
         {
             VkSurfaceCapabilitiesKHR capabilities;
@@ -61,10 +63,9 @@ namespace ankh
         SwapChainSupportDetails query_swapchain_support(VkPhysicalDevice phys, VkSurfaceKHR surface) const;
         VkSurfaceFormatKHR choose_surface_format(const std::vector<VkSurfaceFormatKHR> &available) const;
         VkPresentModeKHR choose_present_mode(const std::vector<VkPresentModeKHR> &available) const;
-        VkExtent2D choose_extent(const VkSurfaceCapabilitiesKHR &caps,
-                                 GLFWwindow *window) const;
+        VkExtent2D choose_extent(const VkSurfaceCapabilitiesKHR &caps, GLFWwindow *window) const;
 
-    private:
+      private:
         VkDevice m_device{VK_NULL_HANDLE};
         VkSwapchainKHR m_swapchain{VK_NULL_HANDLE};
         VkFormat m_image_format{};
@@ -72,6 +73,9 @@ namespace ankh
 
         std::vector<VkImage> m_images;
         std::vector<VkImageView> m_image_views;
+
+        std::unique_ptr<Image> m_depth_image;
+        VkFormat m_depth_format{};
 
         // New: framebuffer per swapchain image
         std::vector<Framebuffer> m_framebuffers;

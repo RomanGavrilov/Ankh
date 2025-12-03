@@ -5,22 +5,20 @@
 namespace ankh
 {
 
-    Framebuffer::Framebuffer(VkDevice device, VkRenderPass render_pass, VkImageView image_view, VkExtent2D extent)
+    Framebuffer::Framebuffer(VkDevice device, VkRenderPass render_pass, const std::vector<VkImageView> &attachments, VkExtent2D extent)
         : m_device(device)
     {
 
-        VkImageView attachments[] = {image_view};
+        VkFramebufferCreateInfo info{};
+        info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        info.renderPass = render_pass;
+        info.attachmentCount = static_cast<uint32_t>(attachments.size());
+        info.pAttachments = attachments.data();
+        info.width = extent.width;
+        info.height = extent.height;
+        info.layers = 1;
 
-        VkFramebufferCreateInfo ci{};
-        ci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        ci.renderPass = render_pass;
-        ci.attachmentCount = 1;
-        ci.pAttachments = attachments;
-        ci.width = extent.width;
-        ci.height = extent.height;
-        ci.layers = 1;
-
-        ANKH_VK_CHECK(vkCreateFramebuffer(m_device, &ci, nullptr, &m_framebuffer));
+        ANKH_VK_CHECK(vkCreateFramebuffer(m_device, &info, nullptr, &m_framebuffer));
     }
 
     Framebuffer::Framebuffer(Framebuffer &&other) noexcept
@@ -36,13 +34,15 @@ namespace ankh
         if (this != &other)
         {
             if (m_framebuffer)
+            {
                 vkDestroyFramebuffer(m_device, m_framebuffer, nullptr);
+            }
 
             m_device = other.m_device;
             m_framebuffer = other.m_framebuffer;
 
-            other.m_device = {};
-            other.m_framebuffer = {};
+            other.m_device = VK_NULL_HANDLE;
+            other.m_framebuffer = VK_NULL_HANDLE;
         }
         return *this;
     }
@@ -50,7 +50,9 @@ namespace ankh
     Framebuffer::~Framebuffer()
     {
         if (m_framebuffer)
+        {
             vkDestroyFramebuffer(m_device, m_framebuffer, nullptr);
+        }
     }
 
 } // namespace ankh

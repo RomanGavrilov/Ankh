@@ -8,6 +8,7 @@ target_link_libraries(ankh_swapchain
     PUBLIC
         ankh_utils
         ankh_core
+        ankh_memory
 )
 
 target_include_directories(ankh_swapchain

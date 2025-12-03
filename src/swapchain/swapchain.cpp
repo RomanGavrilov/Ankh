@@ -3,6 +3,7 @@
 #include "swapchain/swapchain.hpp"
 
 #include "core/physical-device.hpp"
+#include "memory/image.hpp"
 #include "renderpass/frame-buffer.hpp"
 
 #include <GLFW/glfw3.h>
@@ -18,16 +19,20 @@ namespace ankh
     {
         create_swapchain(physicalDevice, surface, window);
         create_image_views();
+        create_depth_resources(physicalDevice);
     }
 
     Swapchain::~Swapchain()
     {
-        destroy_framebuffers();
+        m_framebuffers.clear();
+
+        m_depth_image.reset();
 
         for (auto view : m_image_views)
         {
             vkDestroyImageView(m_device, view, nullptr);
         }
+
         m_image_views.clear();
 
         if (m_swapchain != VK_NULL_HANDLE)
@@ -42,9 +47,10 @@ namespace ankh
     Swapchain &Swapchain::operator=(Swapchain &&other) noexcept
     {
         if (this == &other)
+        {
             return *this;
+        }
 
-        // Destroy current
         this->~Swapchain();
 
         m_device = other.m_device;
@@ -151,14 +157,43 @@ namespace ankh
         }
     }
 
+    void Swapchain::create_depth_resources(const PhysicalDevice &physicalDevice)
+    {
+        m_depth_format = find_depth_format(physicalDevice);
+
+        m_depth_image = std::make_unique<Image>(physicalDevice.handle(),
+                                                m_device,
+                                                m_extent.width,
+                                                m_extent.height,
+                                                m_depth_format,
+                                                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                                VK_IMAGE_ASPECT_DEPTH_BIT);
+    }
+
+    VkFormat Swapchain::find_depth_format(const PhysicalDevice &physicalDevice) const
+    {
+        // Minimal: just pick a reasonable format; for now we skip queries
+        // For a more robust version, query supported formats on physicalDevice.handle()
+        return VK_FORMAT_D32_SFLOAT;
+    }
+
+    VkImageView Swapchain::depth_view() const { return m_depth_image ? m_depth_image->view() : VK_NULL_HANDLE; }
+
     void Swapchain::create_framebuffers(VkRenderPass renderPass)
     {
         m_framebuffers.clear();
+
         m_framebuffers.reserve(m_image_views.size());
 
         for (auto view : m_image_views)
         {
-            m_framebuffers.emplace_back(m_device, renderPass, view, m_extent);
+            std::vector<VkImageView> attachments = {
+                view,                 // color
+                m_depth_image->view() // depth
+            };
+
+            m_framebuffers.emplace_back(m_device, renderPass, attachments, m_extent);
         }
     }
 

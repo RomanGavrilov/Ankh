@@ -6,11 +6,10 @@ namespace ankh
 
     class Framebuffer
     {
-    public:
-        Framebuffer(VkDevice device,
-                    VkRenderPass render_pass,
-                    VkImageView image_view,
-                    VkExtent2D extent);
+      public:
+        Framebuffer(VkDevice device, VkRenderPass render_pass, const std::vector<VkImageView> &attachments, VkExtent2D extent);
+
+        ~Framebuffer();
 
         Framebuffer(Framebuffer &&other) noexcept;
 
@@ -19,13 +18,11 @@ namespace ankh
         Framebuffer(const Framebuffer &) = delete;
         Framebuffer &operator=(const Framebuffer &) = delete;
 
-        ~Framebuffer();
-
         VkFramebuffer handle() const { return m_framebuffer; }
 
-    private:
-        VkDevice m_device{};
-        VkFramebuffer m_framebuffer{};
+      private:
+        VkDevice m_device{VK_NULL_HANDLE};
+        VkFramebuffer m_framebuffer{VK_NULL_HANDLE};
     };
 
 } // namespace ankh

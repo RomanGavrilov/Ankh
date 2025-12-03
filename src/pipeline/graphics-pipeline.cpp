@@ -2,6 +2,7 @@
 #include "shaders/shader-module.hpp"
 #include "utils/types.hpp"
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -79,6 +80,14 @@ namespace ankh
         ds.dynamicStateCount = 2;
         ds.pDynamicStates = dynStates;
 
+        VkPipelineDepthStencilStateCreateInfo depthStencil{};
+        depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencil.depthTestEnable = VK_TRUE;
+        depthStencil.depthWriteEnable = VK_TRUE;
+        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depthStencil.depthBoundsTestEnable = VK_FALSE;
+        depthStencil.stencilTestEnable = VK_FALSE;
+
         VkGraphicsPipelineCreateInfo ci{};
         ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         ci.stageCount = 2;
@@ -88,14 +97,15 @@ namespace ankh
         ci.pViewportState = &vp;
         ci.pRasterizationState = &rs;
         ci.pMultisampleState = &ms;
+        ci.pDepthStencilState = &depthStencil;
         ci.pColorBlendState = &cb;
         ci.pDynamicState = &ds;
         ci.layout = layout;
         ci.renderPass = render_pass;
         ci.subpass = 0;
+        
 
-        if (vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &ci, nullptr, &m_pipeline) != VK_SUCCESS)
-            throw std::runtime_error("failed to create graphics pipeline");
+        ANKH_VK_CHECK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &ci, nullptr, &m_pipeline));
     }
 
     GraphicsPipeline::~GraphicsPipeline()

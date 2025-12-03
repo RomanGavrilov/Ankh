@@ -283,10 +283,12 @@ namespace ankh
         rp_info.renderArea.offset = {0, 0};
         rp_info.renderArea.extent = m_swapchain->extent();
 
-        VkClearValue clear_value{};
-        clear_value.color = {0.0f, 0.0f, 0.0f, 1.0f};
-        rp_info.clearValueCount = 1;
-        rp_info.pClearValues = &clear_value;
+        std::array<VkClearValue, 2> clear_values{};
+        clear_values[0].color = {0.0f, 0.0f, 0.0f, 1.0f}; // color
+        clear_values[1].depthStencil = {1.0f, 0};         // depth (clear to far, stencil 0)
+
+        rp_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+        rp_info.pClearValues = clear_values.data();
 
         vkCmdBeginRenderPass(cmd, &rp_info, VK_SUBPASS_CONTENTS_INLINE);
 
