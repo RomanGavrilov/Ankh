@@ -11,6 +11,9 @@ namespace ankh
     {
     }
 
-    void Material::set_albedo(const glm::vec4 &albedo) { m_albedo = albedo; }
+    void Material::set_albedo(const glm::vec4 &albedo)
+    {
+        m_albedo = albedo;
+    }
 
 } // namespace ankh

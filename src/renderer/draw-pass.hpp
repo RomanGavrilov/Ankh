@@ -10,33 +10,35 @@ namespace ankh
     class GraphicsPipeline;
     class PipelineLayout;
     class FrameContext;
+    class SceneRenderer;
 
     class DrawPass
     {
-    public:
+      public:
         DrawPass(VkDevice device,
-                 const Swapchain& swapchain,
-                 const RenderPass& render_pass,
-                 const GraphicsPipeline& pipeline,
-                 const PipelineLayout& layout);
+                 const Swapchain &swapchain,
+                 const RenderPass &render_pass,
+                 const GraphicsPipeline &pipeline,
+                 const PipelineLayout &layout);
 
         // Assumes:
         //  - command buffer is already begun
         //  - render pass is already active
         //  - viewport/scissor already set
         void record(VkCommandBuffer cmd,
-                    FrameContext& frame,
+                    FrameContext &frame,
                     uint32_t image_index,
                     VkBuffer vertex_buffer,
                     VkBuffer index_buffer,
-                    uint32_t index_count);
+                    uint32_t index_count,
+                    SceneRenderer &scene_renderer);
 
-    private:
+      private:
         VkDevice m_device{VK_NULL_HANDLE};
-        const Swapchain& m_swapchain;
-        const RenderPass& m_render_pass;
-        const GraphicsPipeline& m_pipeline;
-        const PipelineLayout& m_layout;
+        const Swapchain &m_swapchain;
+        const RenderPass &m_render_pass;
+        const GraphicsPipeline &m_pipeline;
+        const PipelineLayout &m_layout;
     };
 
 } // namespace ankh

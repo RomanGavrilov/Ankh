@@ -8,6 +8,7 @@
 #include "utils/types.hpp"
 
 #include <cstring>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -25,26 +26,18 @@ namespace ankh
 
     void SceneRenderer::update_frame(FrameContext &frame, const Swapchain &swapchain, float time)
     {
-        UniformBufferObject ubo{};
-
-        // Model: rotating square around Z axis
-        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(5.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-
-        // Camera: view + proj
-        float aspect = swapchain.extent().width / static_cast<float>(swapchain.extent().height);
+        float aspect = static_cast<float>(swapchain.extent().width) / static_cast<float>(swapchain.extent().height);
 
         m_camera->set_aspect(aspect);
 
-        ubo.view = m_camera->view();
-        ubo.proj = m_camera->proj();
+        if (!m_renderables.empty())
+        {
 
-        ubo.albedo = m_material->albedo();
+            Renderable &r = m_renderables[0];
 
-        // Write into mapped UBO
-        std::memcpy(frame.uniform_mapped(), &ubo, sizeof(ubo));
-
-        // Later: we can also push material data (like albedo) to GPU here
-        // via another UBO/push constant or different descriptor.
+            // Animate: rotate around Z
+            r.transform = glm::rotate(glm::mat4(1.0f), time * glm::radians(5.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        }
     }
 
 } // namespace ankh

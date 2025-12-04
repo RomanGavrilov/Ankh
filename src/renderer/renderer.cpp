@@ -44,7 +44,10 @@
 namespace ankh
 {
 
-    Renderer::Renderer() { init_vulkan(); }
+    Renderer::Renderer()
+    {
+        init_vulkan();
+    }
 
     Renderer::~Renderer()
     {
@@ -88,6 +91,15 @@ namespace ankh
 
         m_mesh = std::make_unique<Mesh>(Mesh::make_colored_quad());
 
+        {
+            Renderable r{};
+            r.mesh = m_mesh.get();
+            r.material = &m_scene_renderer->material();
+            r.transform = glm::mat4(1.0f); // identity for now
+
+            m_scene_renderer->renderables().push_back(r);
+        }
+
         create_framebuffers();
         create_vertex_buffer();
         create_index_buffer();
@@ -98,7 +110,10 @@ namespace ankh
         m_frame_sync = std::make_unique<FrameSync>(kMaxFramesInFlight);
     }
 
-    void Renderer::create_framebuffers() { m_swapchain->create_framebuffers(m_render_pass->handle()); }
+    void Renderer::create_framebuffers()
+    {
+        m_swapchain->create_framebuffers(m_render_pass->handle());
+    }
 
     void Renderer::cleanup_swapchain()
     {
@@ -309,7 +324,7 @@ namespace ankh
 
         // --- Scene draw pass ---
         const uint32_t index_count = static_cast<uint32_t>(m_mesh->index_count());
-        m_draw_pass->record(cmd, frame, image_index, m_vertex_buffer->handle(), m_index_buffer->handle(), index_count);
+        m_draw_pass->record(cmd, frame, image_index, m_vertex_buffer->handle(), m_index_buffer->handle(), index_count, *m_scene_renderer);
 
         // --- UI pass ---
         m_ui_pass->record(cmd, frame, image_index, m_vertex_buffer->handle(), m_index_buffer->handle(), index_count);

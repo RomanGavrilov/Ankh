@@ -16,12 +16,9 @@ ColumnLimit: 140
 BreakBeforeParameters: true
 AllowAllArgumentsOnNextLine: false
 BinPackArguments: false
-
+AllowShortFunctionsOnASingleLine: Empty
 
 NamespaceIndentation: All
 
 BinPackParameters: false
 AllowAllParametersOfDeclarationOnNextLine: false
-
-
- 
