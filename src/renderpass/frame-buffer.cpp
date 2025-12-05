@@ -5,7 +5,10 @@
 namespace ankh
 {
 
-    Framebuffer::Framebuffer(VkDevice device, VkRenderPass render_pass, const std::vector<VkImageView> &attachments, VkExtent2D extent)
+    Framebuffer::Framebuffer(VkDevice device,
+                             VkRenderPass render_pass,
+                             const std::vector<VkImageView> &attachments,
+                             VkExtent2D extent)
         : m_device(device)
     {
 

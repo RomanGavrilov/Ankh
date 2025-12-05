@@ -2,50 +2,60 @@
 #include "utils/logging.hpp"
 
 #include <chrono>
+#include <ctime>
 #include <iomanip>
 #include <iostream>
 #include <mutex>
 
-namespace ankh
+namespace
 {
-    namespace
-    {
-        std::mutex g_log_mutex;
+    std::mutex g_log_mutex;
 
-        std::string timestamp()
-        {
-            using clock = std::chrono::system_clock;
-            auto now = clock::now();
-            auto t = clock::to_time_t(now);
-            std::tm tm{};
+    std::string current_time_string()
+    {
+        using clock = std::chrono::system_clock;
+        auto now = clock::now();
+        auto t = clock::to_time_t(now);
+
+        std::tm tm{};
 #if defined(_WIN32)
-            localtime_s(&tm, &t);
+        localtime_s(&tm, &t);
 #else
-            localtime_r(&t, &tm);
+        localtime_r(&t, &tm);
 #endif
-            char buf[32];
-            std::strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
-            return std::string(buf);
-        }
 
-        void write_line(const char *level, const std::string &msg)
-        {
-            std::lock_guard<std::mutex> lock(g_log_mutex);
-            std::cerr << "[" << timestamp() << "][" << level << "] " << msg << std::endl;
-        }
-    } // namespace
+        std::ostringstream oss;
+        oss << std::put_time(&tm, "%H:%M:%S");
+        return oss.str();
+    }
 
-    namespace log
+    void write_log(const char *level, const std::string &msg, bool error_stream)
     {
+        std::lock_guard<std::mutex> lock(g_log_mutex);
 
-        void init() { write_line("INFO", "Logging initialized"); }
+        auto &os = error_stream ? std::cerr : std::cout;
+        os << "[" << current_time_string() << "][" << level << "] " << msg << '\n';
+    }
+} // namespace
 
-        void info(const std::string &msg) { write_line("INFO", msg); }
+namespace ankh::log
+{
+    // For now this is just a hook for future routing (file, platform logger, etc.).
+    void init() {}
 
-        void warn(const std::string &msg) { write_line("WARN", msg); }
+    void info(const std::string &msg)
+    {
+        write_log("INFO", msg, false);
+    }
 
-        void error(const std::string &msg) { write_line("ERROR", msg); }
+    void warn(const std::string &msg)
+    {
+        write_log("WARN", msg, false);
+    }
 
-    } // namespace log
+    void error(const std::string &msg)
+    {
+        write_log("ERROR", msg, true);
+    }
 
-} // namespace ankh
+} // namespace ankh::log

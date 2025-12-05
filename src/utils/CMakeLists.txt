@@ -4,6 +4,7 @@ add_library(ankh_utils STATIC
     types.cpp
     file-io.cpp
     logging.cpp
+    config.cpp
 )
 
 target_include_directories(ankh_utils
