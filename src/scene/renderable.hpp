@@ -12,6 +12,7 @@ namespace ankh
     {
         Mesh *mesh = nullptr;
         Material *material = nullptr;
+        glm::mat4 base_transform{1.0f};
         glm::mat4 transform{1.0f}; // model matrix
     };
 } // namespace ankh

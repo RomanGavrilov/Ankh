@@ -16,6 +16,7 @@ namespace ankh
                                VkDevice device,
                                uint32_t graphicsQueueFamilyIndex,
                                VkDeviceSize uniformBufferSize,
+                               VkDeviceSize objectBufferSize,
                                VkDescriptorSet descriptorSet,
                                VkImageView textureView,
                                VkSampler textureSampler)
@@ -27,14 +28,25 @@ namespace ankh
 
         m_cmd = std::make_unique<CommandBuffer>(m_device, m_pool->handle());
 
-        // Per-frame UBO
+        // Uniform buffer (FrameUBO)
         m_uniform_buffer = std::make_unique<Buffer>(physicalDevice,
                                                     m_device,
                                                     uniformBufferSize,
                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         m_uniform_mapped = m_uniform_buffer->map(0, uniformBufferSize);
+
+        // Object buffer (ObjectDataGPU array)
+        m_object_buffer = std::make_unique<Buffer>(physicalDevice,
+                                                   m_device,
+                                                   objectBufferSize,
+                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                                       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        m_object_mapped = m_object_buffer->map(0, objectBufferSize);
 
         // Update descriptor set for this frame
         DescriptorWriter writer{m_device};
@@ -42,15 +54,18 @@ namespace ankh
         writer.writeUniformBuffer(m_descriptor_set,
                                   m_uniform_buffer->handle(),
                                   uniformBufferSize,
-                                  0 // binding 0
-        );
+                                  /*binding*/ 0);
+
+        writer.writeStorageBuffer(m_descriptor_set,
+                                  m_object_buffer->handle(),
+                                  objectBufferSize,
+                                  /*binding*/ 1);
 
         writer.writeCombinedImageSampler(m_descriptor_set,
                                          textureView,
                                          textureSampler,
                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                         1 // binding 1
-        );
+                                         /*binding*/ 2);
 
         // Sync primitives...
         VkSemaphoreCreateInfo semInfo{};
@@ -80,6 +95,12 @@ namespace ankh
         {
             m_uniform_buffer->unmap();
             m_uniform_mapped = nullptr;
+        }
+
+        if (m_object_buffer && m_object_mapped)
+        {
+            m_object_buffer->unmap();
+            m_object_mapped = nullptr;
         }
 
         if (m_image_available != VK_NULL_HANDLE)
@@ -123,7 +144,10 @@ namespace ankh
         other.m_in_flight = VK_NULL_HANDLE;
     }
 
-    VkCommandBuffer FrameContext::command_buffer() const { return m_cmd ? m_cmd->handle() : VK_NULL_HANDLE; }
+    VkCommandBuffer FrameContext::command_buffer() const
+    {
+        return m_cmd ? m_cmd->handle() : VK_NULL_HANDLE;
+    }
 
     VkCommandBuffer FrameContext::begin()
     {
@@ -132,6 +156,9 @@ namespace ankh
         return m_cmd->handle();
     }
 
-    void FrameContext::end() { m_cmd->end(); }
+    void FrameContext::end()
+    {
+        m_cmd->end();
+    }
 
 } // namespace ankh

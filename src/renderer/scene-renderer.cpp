@@ -24,19 +24,25 @@ namespace ankh
 
     SceneRenderer::~SceneRenderer() = default;
 
-    void SceneRenderer::update_frame(FrameContext &frame, const Swapchain &swapchain, float time)
+    void SceneRenderer::update_frame(FrameContext &, const Swapchain &swapchain, float time)
     {
-        float aspect = static_cast<float>(swapchain.extent().width) / static_cast<float>(swapchain.extent().height);
+        float aspect = static_cast<float>(swapchain.extent().width) /
+                       static_cast<float>(swapchain.extent().height);
 
         m_camera->set_aspect(aspect);
 
-        if (!m_renderables.empty())
+        int i = 0;
+
+        for (auto &r : m_renderables)
         {
+            float speedDegrees = 10.0f + i * 30.0f; // increasing speed by index
+            float speed = glm::radians(speedDegrees);
 
-            Renderable &r = m_renderables[0];
+            glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), time * speed, glm::vec3(0, 0, 1));
 
-            // Animate: rotate around Z
-            r.transform = glm::rotate(glm::mat4(1.0f), time * glm::radians(5.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            r.transform = r.base_transform * rotation;
+
+            ++i;
         }
     }
 

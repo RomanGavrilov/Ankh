@@ -37,53 +37,53 @@ namespace ankh
                           uint32_t index_count,
                           SceneRenderer &scene)
     {
-
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.handle());
 
-        // Bind vertex buffer
+        // Vertex buffer
         VkBuffer vertexBuffers[] = {vertex_buffer};
+
         VkDeviceSize offsets[] = {0};
+
         vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
 
-        // Bind index buffer
+        // Index buffer
         vkCmdBindIndexBuffer(cmd, index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-        // Bind descriptor set for this frame
+        // Descriptor set
         VkDescriptorSet ds = frame.descriptor_set();
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout.handle(), 0, 1, &ds, 0, nullptr);
 
-        // Update UBO for this frame
-        auto *ubo = reinterpret_cast<UniformBufferObject *>(frame.uniform_mapped());
-        if (!ubo)
-        {
-            ANKH_LOG_ERROR("[DrawPass] uniform_mapped() returned null!");
-            return;
-        }
+        vkCmdBindDescriptorSets(cmd,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                m_layout.handle(),
+                                0,
+                                1,
+                                &ds,
+                                0,
+                                nullptr);
 
         const auto &renderables = scene.renderables();
-        if (renderables.empty())
+        const uint32_t drawCount = static_cast<uint32_t>(renderables.size());
+
+        for (uint32_t i = 0; i < drawCount; ++i)
         {
-            ANKH_LOG_WARN("[DrawPass] No renderables in scene, nothing to draw.");
-            return;
+            const auto &r = renderables[i];
+            if (!r.mesh || !r.material)
+            {
+                ANKH_LOG_WARN("[DrawPass] Skipping renderable: missing mesh or material.");
+                continue;
+            }
+
+            uint32_t objectIndex = i;
+
+            vkCmdPushConstants(cmd,
+                               m_layout.handle(),
+                               VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                               0,
+                               sizeof(uint32_t),
+                               &objectIndex);
+
+            vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
         }
-
-        const Renderable &r = renderables[0];
-
-        const auto &cam = scene.camera();
-
-        ubo->model = r.transform;
-        ubo->view = cam.view();
-        ubo->proj = cam.proj();
-        ubo->albedo = scene.material().albedo();
-
-        if (index_count == 0)
-        {
-            ANKH_LOG_WARN("[DrawPass] index_count is 0, skipping draw.");
-            return;
-        }
-
-        // Draw indexed
-        vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
     }
 
 } // namespace ankh

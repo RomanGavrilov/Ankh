@@ -45,6 +45,7 @@ namespace ankh
         {
             return m_renderables;
         }
+
         const std::vector<Renderable> &renderables() const
         {
             return m_renderables;

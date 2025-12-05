@@ -9,7 +9,10 @@ namespace ankh
     {
     }
 
-    void DescriptorWriter::writeUniformBuffer(VkDescriptorSet set, VkBuffer buf, VkDeviceSize size, uint32_t binding)
+    void DescriptorWriter::writeUniformBuffer(VkDescriptorSet set,
+                                              VkBuffer buf,
+                                              VkDeviceSize size,
+                                              uint32_t binding)
     {
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = buf;
@@ -47,6 +50,28 @@ namespace ankh
         write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         write.descriptorCount = 1;
         write.pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
+    }
+
+    void DescriptorWriter::writeStorageBuffer(VkDescriptorSet set,
+                                              VkBuffer buf,
+                                              VkDeviceSize size,
+                                              uint32_t binding)
+    {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = buf;
+        bufferInfo.offset = 0;
+        bufferInfo.range = size;
+
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = set;
+        write.dstBinding = binding;
+        write.dstArrayElement = 0;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        write.descriptorCount = 1;
+        write.pBufferInfo = &bufferInfo;
 
         vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
     }

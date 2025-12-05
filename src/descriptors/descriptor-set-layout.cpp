@@ -10,28 +10,36 @@ namespace ankh
     DescriptorSetLayout::DescriptorSetLayout(VkDevice device)
         : m_device(device)
     {
-        // Binding 0: UBO (vertex shader)
-        VkDescriptorSetLayoutBinding ubo{};
-        ubo.binding = 0;
-        ubo.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        ubo.descriptorCount = 1;
-        ubo.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-        ubo.pImmutableSamplers = nullptr;
+        // Binding 0: FrameUBO (uniform buffer)
+        VkDescriptorSetLayoutBinding frameUBO{};
+        frameUBO.binding = 0;
+        frameUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        frameUBO.descriptorCount = 1;
+        frameUBO.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+        frameUBO.pImmutableSamplers = nullptr;
 
-        // Binding 1: combined image sampler (fragment shader)
+        // Binding 1: Object buffer (storage buffer)
+        VkDescriptorSetLayoutBinding objectBuffer{};
+        objectBuffer.binding = 1;
+        objectBuffer.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        objectBuffer.descriptorCount = 1;
+        objectBuffer.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+        objectBuffer.pImmutableSamplers = nullptr;
+
+        // Binding 2: combined image sampler
         VkDescriptorSetLayoutBinding sampler{};
-        sampler.binding = 1;
+        sampler.binding = 2;
         sampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         sampler.descriptorCount = 1;
         sampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         sampler.pImmutableSamplers = nullptr;
 
-        VkDescriptorSetLayoutBinding bindings[] = {ubo, sampler};
+        std::array<VkDescriptorSetLayoutBinding, 3> bindings = {frameUBO, objectBuffer, sampler};
 
         VkDescriptorSetLayoutCreateInfo info{};
         info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        info.bindingCount = 2;
-        info.pBindings = bindings;
+        info.bindingCount = static_cast<uint32_t>(bindings.size());
+        info.pBindings = bindings.data();
 
         ANKH_VK_CHECK(vkCreateDescriptorSetLayout(m_device, &info, nullptr, &m_layout));
     }

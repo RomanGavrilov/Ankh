@@ -1,23 +1,38 @@
 #version 450
 
 layout(location = 0) in vec3 fragColor;
-layout(location = 1) in vec2 fragUV;   // ⬅️ from vertex shader
+layout(location = 1) in vec2 fragUV;
+layout(location = 2) in vec4 fragAlbedo;
 
 layout(location = 0) out vec4 outColor;
 
-layout(binding = 0) uniform UniformBufferObject {
-    mat4 model;
+layout(binding = 0) uniform FrameUBO {
     mat4 view;
     mat4 proj;
-    vec4 albedo;
-} ubo;
+    vec4 globalAlbedo;
+} frame;
 
-layout(binding = 1) uniform sampler2D uTexture;
+struct ObjectData {
+    mat4 model;
+    vec4 albedo;
+};
+
+layout(std430, binding = 1) readonly buffer ObjectBuffer {
+    ObjectData objects[];
+};
+
+layout(push_constant) uniform ObjectPC {
+    uint objectIndex;
+} pc;
+
+layout(binding = 2) uniform sampler2D uTexture;
 
 void main() {
-    // Use mesh-provided UVs instead of screen-based coords
-    vec4 texColor = texture(uTexture, fragUV);
+    ObjectData obj = objects[pc.objectIndex];
 
+    vec4 texColor = texture(uTexture, fragUV);
     vec4 base = texColor * vec4(fragColor, 1.0);
-    outColor = base * ubo.albedo;
+
+    // per-object albedo
+    outColor = base * obj.albedo;
 }

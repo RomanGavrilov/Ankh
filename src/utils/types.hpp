@@ -32,7 +32,10 @@ namespace ankh
         std::optional<uint32_t> graphicsFamily;
         std::optional<uint32_t> presentFamily;
 
-        bool isComplete() const { return graphicsFamily && presentFamily; }
+        bool isComplete() const
+        {
+            return graphicsFamily && presentFamily;
+        }
     };
 
     struct SwapChainSupportDetails
@@ -52,11 +55,18 @@ namespace ankh
         static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
     };
 
-    struct UniformBufferObject
+    inline constexpr uint32_t kMaxObjects = 256;
+
+    struct FrameUBO
     {
-        alignas(16) glm::mat4 model;
         alignas(16) glm::mat4 view;
         alignas(16) glm::mat4 proj;
+        alignas(16) glm::vec4 globalAlbedo;
+    };
+
+    struct ObjectDataGPU
+    {
+        alignas(16) glm::mat4 model;
         alignas(16) glm::vec4 albedo;
     };
 

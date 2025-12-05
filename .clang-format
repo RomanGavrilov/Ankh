@@ -1,24 +1,22 @@
-BasedOnStyle: LLVM        # or Google, or whatever you prefer
+BasedOnStyle: LLVM
 
-# For older clang-format (pre-12):
-BreakConstructorInitializersBeforeComma: true
-
-# For newer clang-format:
+# Constructor init lists
 BreakConstructorInitializers: BeforeComma
-
 ConstructorInitializerIndentWidth: 4
 
+# Layout & indentation
 BreakBeforeBraces: Allman
 IndentWidth: 4
-ColumnLimit: 140
+ColumnLimit: 100
 
-# Break function calls that are too long
-BreakBeforeParameters: true
-AllowAllArgumentsOnNextLine: false
+# Function calls
 BinPackArguments: false
+AllowAllArgumentsOnNextLine: false
+
+# Function declarations
+BinPackParameters: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
 AllowShortFunctionsOnASingleLine: Empty
 
 NamespaceIndentation: All
-
-BinPackParameters: false
-AllowAllParametersOfDeclarationOnNextLine: false
