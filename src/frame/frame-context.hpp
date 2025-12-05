@@ -66,6 +66,11 @@ namespace ankh
             return m_in_flight;
         }
 
+        uint32_t object_capacity() const
+        {
+            return m_object_capacity;
+        }
+
         // manage command buffer lifecycle for this frame
         VkCommandBuffer begin(); // reset + vkBeginCommandBuffer
         void end();              // vkEndCommandBuffer
@@ -87,6 +92,8 @@ namespace ankh
         VkSemaphore m_image_available{VK_NULL_HANDLE};
         VkSemaphore m_render_finished{VK_NULL_HANDLE};
         VkFence m_in_flight{VK_NULL_HANDLE};
+
+        uint32_t m_object_capacity{0};
     };
 
 } // namespace ankh

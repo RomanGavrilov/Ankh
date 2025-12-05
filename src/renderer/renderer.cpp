@@ -26,6 +26,7 @@
 #include "pipeline/graphics-pipeline.hpp"
 #include "pipeline/pipeline-layout.hpp"
 
+#include "utils/config.hpp"
 #include "utils/types.hpp"
 
 #include "memory/buffer.hpp"
@@ -50,6 +51,9 @@ namespace ankh
 
     Renderer::Renderer()
     {
+        ANKH_LOG_INFO("[Renderer] ObjectBuffer capacity per frame: " +
+                      std::to_string(ankh::config().maxObjects));
+
         init_vulkan();
     }
 
@@ -296,7 +300,7 @@ namespace ankh
         uint32_t graphicsFamily = queues.graphicsFamily.value();
 
         VkDeviceSize uboSize = sizeof(FrameUBO);
-        VkDeviceSize objectSize = sizeof(ObjectDataGPU) * kMaxObjects;
+        VkDeviceSize objectSize = sizeof(ObjectDataGPU) * ankh::config().maxObjects;
 
         std::vector<VkDescriptorSetLayout> layouts(kMaxFramesInFlight,
                                                    m_descriptor_set_layout->handle());
@@ -405,7 +409,16 @@ namespace ankh
         auto *objData = reinterpret_cast<ObjectDataGPU *>(frame.object_mapped());
         auto &renderables = m_scene_renderer->renderables();
 
-        uint32_t count = std::min<uint32_t>(static_cast<uint32_t>(renderables.size()), kMaxObjects);
+        const uint32_t capacity = frame.object_capacity();
+        const uint32_t requested = static_cast<uint32_t>(renderables.size());
+        const uint32_t count = std::min<uint32_t>(requested, capacity);
+
+        if (requested > capacity)
+        {
+            ANKH_LOG_WARN("Renderables exceed object buffer capacity (requested=" +
+                          std::to_string(requested) + ", capacity=" + std::to_string(capacity) +
+                          "); extra objects will not be drawn this frame.");
+        }
 
         for (uint32_t i = 0; i < count; ++i)
         {

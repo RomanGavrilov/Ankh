@@ -48,6 +48,9 @@ namespace ankh
 
         m_object_mapped = m_object_buffer->map(0, objectBufferSize);
 
+        // How many ObjectDataGPU elements fit in the object buffer?
+        m_object_capacity = static_cast<uint32_t>(objectBufferSize / sizeof(ObjectDataGPU));
+
         // Update descriptor set for this frame
         DescriptorWriter writer{m_device};
 

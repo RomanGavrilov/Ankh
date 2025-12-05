@@ -55,8 +55,6 @@ namespace ankh
         static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
     };
 
-    inline constexpr uint32_t kMaxObjects = 256;
-
     struct FrameUBO
     {
         alignas(16) glm::mat4 view;

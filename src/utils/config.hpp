@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace ankh
 {
 
@@ -8,6 +10,7 @@ namespace ankh
         bool validation = true;
         bool vsync = true;      // use FIFO (vsync) vs MAILBOX/IMMEDIATE
         int framesInFlight = 2; // number of frame contexts
+        std::uint32_t maxObjects = 4096;
     };
 
     Config &config();
