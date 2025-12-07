@@ -19,7 +19,8 @@ namespace ankh
         // Default camera: already positioned at (2,2,2) looking at origin with fov 45°
         // Aspect will be set per-frame based on swapchain extent.
 
-        m_material = std::make_unique<Material>(glm::vec4(0.8f, 0.2f, 0.2f, 1.0f)); // reddish
+        Material defaultMaterial;
+        m_default_material = m_material_pool.create(defaultMaterial);
     }
 
     SceneRenderer::~SceneRenderer() = default;

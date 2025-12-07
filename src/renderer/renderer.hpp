@@ -1,6 +1,7 @@
 // src/renderer/renderer.hpp
 #pragma once
 
+#include "scene/renderable.hpp"
 #include "utils/types.hpp"
 
 #include <memory>
@@ -74,10 +75,12 @@ namespace ankh
         std::unique_ptr<DrawPass> m_draw_pass;
         std::unique_ptr<UiPass> m_ui_pass;
         std::unique_ptr<SceneRenderer> m_scene_renderer;
-        std::unique_ptr<Mesh> m_mesh;
+
         std::unique_ptr<Texture> m_texture;
         std::vector<FrameContext> m_frames;
         std::unique_ptr<FrameSync> m_frame_sync;
+
+        MeshHandle m_quad_mesh_handle;
     };
 
 } // namespace ankh

@@ -17,10 +17,13 @@ namespace ankh
         explicit Material(const glm::vec4 &albedo);
 
         void set_albedo(const glm::vec4 &albedo);
-        const glm::vec4 &albedo() const { return m_albedo; }
+        const glm::vec4 &albedo() const
+        {
+            return m_albedo;
+        }
 
       private:
-        glm::vec4 m_albedo{1.0f, 0.7f, 0.2f, 1.0f}; // default: orange
+        glm::vec4 m_albedo{1.0f, 0.0f, 0.7f, 1.0f}; // Default magenta to spot missing albedo
     };
 
 } // namespace ankh

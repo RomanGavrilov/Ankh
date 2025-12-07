@@ -12,10 +12,11 @@
 #include "renderpass/render-pass.hpp"
 
 #include "draw-pass.hpp"
+
 #include "scene-renderer.hpp"
 #include "scene/camera.hpp"
-#include "scene/material.hpp"
-#include "scene/mesh.hpp"
+#include "scene/material-pool.hpp"
+#include "scene/mesh-pool.hpp"
 #include "scene/renderable.hpp"
 
 #include "ui-pass.hpp"
@@ -108,18 +109,21 @@ namespace ankh
 
         m_scene_renderer = std::make_unique<SceneRenderer>();
 
-        m_mesh = std::make_unique<Mesh>(Mesh::make_colored_quad());
+        Mesh quad = Mesh::make_colored_quad();
+        m_quad_mesh_handle = m_scene_renderer->mesh_pool().create(std::move(quad));
+
+        MaterialHandle material_handle = m_scene_renderer->default_material_handle();
 
         {
             Renderable r1{};
-            r1.mesh = m_mesh.get();
-            r1.material = &m_scene_renderer->material();
+            r1.mesh = m_quad_mesh_handle;
+            r1.material = material_handle;
             r1.base_transform = glm::mat4(1.0f);
             r1.base_transform = glm::translate(glm::mat4(1.0f), glm::vec3(-0.7f, 0.0f, 0.0f));
 
             Renderable r2{};
-            r2.mesh = m_mesh.get();
-            r2.material = &m_scene_renderer->material();
+            r2.mesh = m_quad_mesh_handle;
+            r2.material = material_handle;
             r2.base_transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.7f, 0.0f, 0.0f));
             r2.transform = r2.base_transform;
 
@@ -155,7 +159,9 @@ namespace ankh
 
     void Renderer::create_vertex_buffer()
     {
-        const auto &verts = m_mesh->vertices();
+        const Mesh &mesh = m_scene_renderer->mesh_pool().get(m_quad_mesh_handle);
+        const auto &verts = mesh.vertices();
+
         VkDeviceSize size = sizeof(Vertex) * verts.size();
 
         Buffer staging(m_context->physical_device().handle(),
@@ -185,7 +191,9 @@ namespace ankh
 
     void Renderer::create_index_buffer()
     {
-        const auto &indices = m_mesh->indices();
+        const Mesh &mesh = m_scene_renderer->mesh_pool().get(m_quad_mesh_handle);
+        const auto &indices = mesh.indices();
+
         VkDeviceSize size = sizeof(uint16_t) * indices.size();
 
         Buffer staging(m_context->physical_device().handle(),
@@ -364,8 +372,9 @@ namespace ankh
         scissor.extent = m_swapchain->extent();
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-        // --- Scene draw pass ---
-        const uint32_t index_count = static_cast<uint32_t>(m_mesh->index_count());
+        const Mesh &mesh = m_scene_renderer->mesh_pool().get(m_quad_mesh_handle);
+        const uint32_t index_count = static_cast<uint32_t>(mesh.index_count());
+
         m_draw_pass->record(cmd,
                             frame,
                             image_index,
@@ -408,6 +417,7 @@ namespace ankh
         // 3. Write ObjectDataGPU array
         auto *objData = reinterpret_cast<ObjectDataGPU *>(frame.object_mapped());
         auto &renderables = m_scene_renderer->renderables();
+        auto &materials = m_scene_renderer->material_pool();
 
         const uint32_t capacity = frame.object_capacity();
         const uint32_t requested = static_cast<uint32_t>(renderables.size());
@@ -423,16 +433,17 @@ namespace ankh
         for (uint32_t i = 0; i < count; ++i)
         {
             const auto &r = renderables[i];
-            if (!r.mesh || !r.material)
-            {
-                // Fill with identity/default if you like
-                objData[i].model = glm::mat4(1.0f);
-                objData[i].albedo = glm::vec4(1.0f);
-                continue;
-            }
 
             objData[i].model = r.transform;
-            objData[i].albedo = r.material->albedo();
+
+            glm::vec4 albedo{1.0f};
+
+            if (materials.valid(r.material))
+            {
+                albedo = materials.get(r.material).albedo();
+            }
+
+            objData[i].albedo = albedo;
         }
     }
 
