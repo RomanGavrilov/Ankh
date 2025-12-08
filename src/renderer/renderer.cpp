@@ -17,6 +17,8 @@
 #include "scene/camera.hpp"
 #include "scene/material-pool.hpp"
 #include "scene/mesh-pool.hpp"
+#include "scene/model-loader.hpp"
+#include "scene/model.hpp"
 #include "scene/renderable.hpp"
 
 #include "ui-pass.hpp"
@@ -109,27 +111,53 @@ namespace ankh
 
         m_scene_renderer = std::make_unique<SceneRenderer>();
 
-        Mesh quad = Mesh::make_colored_quad();
-        m_quad_mesh_handle = m_scene_renderer->mesh_pool().create(std::move(quad));
-
-        MaterialHandle material_handle = m_scene_renderer->default_material_handle();
-
         {
-            Renderable r1{};
-            r1.mesh = m_quad_mesh_handle;
-            r1.material = material_handle;
-            r1.base_transform = glm::mat4(1.0f);
-            r1.base_transform = glm::translate(glm::mat4(1.0f), glm::vec3(-0.7f, 0.0f, 0.0f));
+            // adjust path to where you actually put Box.gltf or Box.glb
+            Model model = ModelLoader::load_gltf("D:\\Rep\\Ankh\\assets\\models\\cube.gltf",
+                                                 m_scene_renderer->mesh_pool(),
+                                                 m_scene_renderer->material_pool());
 
-            Renderable r2{};
-            r2.mesh = m_quad_mesh_handle;
-            r2.material = material_handle;
-            r2.base_transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.7f, 0.0f, 0.0f));
-            r2.transform = r2.base_transform;
+            MaterialHandle default_mat = m_scene_renderer->default_material_handle();
 
-            m_scene_renderer->renderables().push_back(r1);
-            m_scene_renderer->renderables().push_back(r2);
+            for (const auto &node : model.nodes())
+            {
+                if (node.mesh == INVALID_MESH_HANDLE)
+                {
+                    continue;
+                }
+
+                Renderable r{};
+                r.mesh = node.mesh;
+                r.material =
+                    (node.material == INVALID_MATERIAL_HANDLE) ? default_mat : node.material;
+                r.base_transform = node.local_transform;
+                r.transform = r.base_transform;
+
+                m_scene_renderer->renderables().push_back(r);
+            }
         }
+
+        // Mesh quad = Mesh::make_colored_quad();
+        // m_quad_mesh_handle = m_scene_renderer->mesh_pool().create(std::move(quad));
+
+        // MaterialHandle material_handle = m_scene_renderer->default_material_handle();
+
+        // {
+        //     Renderable r1{};
+        //     r1.mesh = m_quad_mesh_handle;
+        //     r1.material = material_handle;
+        //     r1.base_transform = glm::mat4(1.0f);
+        //     r1.base_transform = glm::translate(glm::mat4(1.0f), glm::vec3(-0.7f, 0.0f, 0.0f));
+
+        //     Renderable r2{};
+        //     r2.mesh = m_quad_mesh_handle;
+        //     r2.material = material_handle;
+        //     r2.base_transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.7f, 0.0f, 0.0f));
+        //     r2.transform = r2.base_transform;
+
+        //     m_scene_renderer->renderables().push_back(r1);
+        //     m_scene_renderer->renderables().push_back(r2);
+        // }
 
         create_framebuffers();
         create_vertex_buffer();

@@ -84,7 +84,7 @@ namespace ankh
         MeshPool m_mesh_pool;
         MaterialPool m_material_pool;
 
-        MaterialHandle m_default_material{INVALID_MATERIAL_HANDLE};
+        MaterialHandle m_default_material;
 
         std::vector<Renderable> m_renderables;
     };
