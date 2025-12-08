@@ -15,19 +15,14 @@ namespace ankh
     {
         std::vector<Vertex> verts = {
             //      pos           color                     uv
-            { {-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f} }, // bottom-left
-            { { 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f} }, // bottom-right
-            { { 0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f} }, // top-right
-            { {-0.5f,  0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f} }, // top-left
-        };
-        std::vector<uint16_t> inds = 
-        {
-            0, 1, 2, 
-            2, 3, 0
+            {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-left
+            {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},  // bottom-right
+            {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},   // top-right
+            {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},  // top-left
         };
 
-        std::vector<Vertex> vertices(verts.begin(), verts.end());
-        std::vector<uint16_t> indices(inds.begin(), inds.end());
+        std::vector<uint16_t> inds = {0, 1, 2, 2, 3, 0};
+
         return Mesh{std::move(verts), std::move(inds)};
     }
 

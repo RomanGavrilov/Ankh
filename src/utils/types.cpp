@@ -16,16 +16,19 @@ namespace ankh
     {
         std::array<VkVertexInputAttributeDescription, 3> attrs{};
 
+        // location 0: position (vec3)
         attrs[0].binding = 0;
         attrs[0].location = 0;
         attrs[0].format = VK_FORMAT_R32G32_SFLOAT;
         attrs[0].offset = offsetof(Vertex, pos);
 
+        // location 1: color (vec3)
         attrs[1].binding = 0;
         attrs[1].location = 1;
         attrs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
         attrs[1].offset = offsetof(Vertex, color);
 
+        // location 2: uv (vec2)
         attrs[2].binding = 0;
         attrs[2].location = 2;
         attrs[2].format = VK_FORMAT_R32G32_SFLOAT;
