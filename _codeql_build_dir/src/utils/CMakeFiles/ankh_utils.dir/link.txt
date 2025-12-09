@@ -1,0 +1,2 @@
+/usr/bin/ar qc libankh_utils.a CMakeFiles/ankh_utils.dir/types.cpp.o "CMakeFiles/ankh_utils.dir/file-io.cpp.o" CMakeFiles/ankh_utils.dir/logging.cpp.o CMakeFiles/ankh_utils.dir/config.cpp.o "CMakeFiles/ankh_utils.dir/stb-image-impl.cpp.o" "CMakeFiles/ankh_utils.dir/stb-image-write-impl.cpp.o" "CMakeFiles/ankh_utils.dir/tiny-gltf-impl.cpp.o"
+/usr/bin/ranlib libankh_utils.a

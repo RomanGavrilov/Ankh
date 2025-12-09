@@ -1,0 +1,2 @@
+/usr/bin/ar qc libankh_frame.a "CMakeFiles/ankh_frame.dir/frame-context.cpp.o"
+/usr/bin/ranlib libankh_frame.a

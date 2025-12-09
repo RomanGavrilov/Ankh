@@ -1,0 +1,2 @@
+/usr/bin/ar qc libankh_scene.a CMakeFiles/ankh_scene.dir/camera.cpp.o CMakeFiles/ankh_scene.dir/mesh.cpp.o CMakeFiles/ankh_scene.dir/material.cpp.o "CMakeFiles/ankh_scene.dir/model-loader.cpp.o"
+/usr/bin/ranlib libankh_scene.a
