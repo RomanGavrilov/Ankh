@@ -38,11 +38,11 @@ namespace ankh
         }
 
       private:
-        glm::vec3 m_position{10.0f, 10.0f, 10.0f};
+        glm::vec3 m_position{15.0f, 10.0f, 8.0f};
         glm::vec3 m_target{0.0f, 0.0f, 0.0f};
         glm::vec3 m_up{0.0f, 0.0f, 1.0f};
 
-        float m_fov{glm::radians(45.0f)};
+        float m_fov{glm::radians(60.0f)};
         float m_aspect{4.0f / 3.0f};
         float m_znear{0.1f};
         float m_zfar{1000.0f};

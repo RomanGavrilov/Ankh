@@ -36,10 +36,11 @@ namespace ankh
 
         for (auto &r : m_renderables)
         {
-            float speedDegrees = 10.0f + i * 30.0f; // increasing speed by index
-            float speed = glm::radians(speedDegrees);
-
-            r.transform = glm::rotate(r.base_transform, time * 0.5f, glm::vec3(0.0f, 1.0f, 0.0f));
+            // rotate around Y and X so you really see depth
+            glm::mat4 m = r.base_transform;
+            m = glm::rotate(m, time * 0.8f, glm::vec3(0.0f, 1.0f, 0.0f));
+            m = glm::rotate(m, time * 0.4f, glm::vec3(1.0f, 0.0f, 0.0f));
+            r.transform = m;
 
             ++i;
         }
