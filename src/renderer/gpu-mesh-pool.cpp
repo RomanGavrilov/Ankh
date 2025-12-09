@@ -36,11 +36,6 @@ namespace ankh
             info.firstIndex = static_cast<uint32_t>(allIndices.size());
             info.indexCount = static_cast<uint32_t>(indices.size());
             info.vertexOffset = static_cast<int32_t>(allVertices.size());
-            
-            ANKH_LOG_INFO("Mesh " + std::to_string(h) + ": firstIndex=" + 
-                          std::to_string(info.firstIndex) + ", indexCount=" + 
-                          std::to_string(info.indexCount) + ", vertexOffset=" + 
-                          std::to_string(info.vertexOffset));
 
             allVertices.insert(allVertices.end(), verts.begin(), verts.end());
             allIndices.insert(allIndices.end(), indices.begin(), indices.end());

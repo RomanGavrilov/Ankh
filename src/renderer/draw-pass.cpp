@@ -9,7 +9,6 @@
 #include "renderer/scene-renderer.hpp"
 #include "renderpass/render-pass.hpp"
 #include "swapchain/swapchain.hpp"
-#include "utils/logging.hpp"
 
 namespace ankh
 {
