@@ -19,7 +19,7 @@ namespace ankh
         // location 0: position (vec3)
         attrs[0].binding = 0;
         attrs[0].location = 0;
-        attrs[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attrs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attrs[0].offset = offsetof(Vertex, pos);
 
         // location 1: color (vec3)
