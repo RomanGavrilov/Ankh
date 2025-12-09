@@ -52,6 +52,7 @@ namespace ankh
         rs.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         rs.polygonMode = VK_POLYGON_MODE_FILL;
         rs.cullMode = VK_CULL_MODE_BACK_BIT;
+
         rs.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rs.lineWidth = 1.0f;
 
@@ -60,10 +61,8 @@ namespace ankh
         ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
         VkPipelineColorBlendAttachmentState cba{};
-        cba.colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
-                             VK_COLOR_COMPONENT_G_BIT |
-                             VK_COLOR_COMPONENT_B_BIT |
-                             VK_COLOR_COMPONENT_A_BIT;
+        cba.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                             VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         cba.blendEnable = VK_FALSE;
 
         VkPipelineColorBlendStateCreateInfo cb{};
@@ -71,9 +70,7 @@ namespace ankh
         cb.attachmentCount = 1;
         cb.pAttachments = &cba;
 
-        VkDynamicState dynStates[] = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR};
+        VkDynamicState dynStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
         VkPipelineDynamicStateCreateInfo ds{};
         ds.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -103,9 +100,9 @@ namespace ankh
         ci.layout = layout;
         ci.renderPass = render_pass;
         ci.subpass = 0;
-        
 
-        ANKH_VK_CHECK(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &ci, nullptr, &m_pipeline));
+        ANKH_VK_CHECK(
+            vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &ci, nullptr, &m_pipeline));
     }
 
     GraphicsPipeline::~GraphicsPipeline()

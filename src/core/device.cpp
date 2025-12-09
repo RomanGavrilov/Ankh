@@ -10,9 +10,8 @@ namespace ankh
     {
         QueueFamilyIndices indices = phys.queues();
 
-        std::set<uint32_t> uniqueFamilies = {
-            indices.graphicsFamily.value(),
-            indices.presentFamily.value()};
+        std::set<uint32_t> uniqueFamilies = {indices.graphicsFamily.value(),
+                                             indices.presentFamily.value()};
 
         float queuePriority = 1.0f;
         std::vector<VkDeviceQueueCreateInfo> queueInfos;
@@ -27,7 +26,9 @@ namespace ankh
             queueInfos.push_back(q);
         }
 
-        VkPhysicalDeviceFeatures features{};
+        VkPhysicalDeviceFeatures features{.fillModeNonSolid = VK_TRUE,
+                                          .wideLines = VK_TRUE,
+                                          .samplerAnisotropy = VK_TRUE};
 
         const char *extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 

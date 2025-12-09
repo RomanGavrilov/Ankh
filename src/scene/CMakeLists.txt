@@ -4,6 +4,7 @@ add_library(ankh_scene STATIC
     camera.cpp
     mesh.cpp
     material.cpp
+    model-loader.cpp
 )
 
 target_include_directories(ankh_scene
