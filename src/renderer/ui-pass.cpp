@@ -4,9 +4,9 @@
 #include "frame/frame-context.hpp"
 #include "pipeline/graphics-pipeline.hpp"
 #include "pipeline/pipeline-layout.hpp"
+#include "renderer/scene-renderer.hpp"
 #include "renderpass/render-pass.hpp"
 #include "swapchain/swapchain.hpp"
-#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -24,29 +24,15 @@ namespace ankh
     {
     }
 
-    void UiPass::record(VkCommandBuffer cmd,
-                        FrameContext &frame,
+    void UiPass::record(VkCommandBuffer /*cmd*/,
+                        FrameContext & /*frame*/,
                         uint32_t /*image_index*/,
-                        VkBuffer vertex_buffer,
-                        VkBuffer index_buffer,
-                        uint32_t index_count)
+                        VkBuffer /*vertex_buffer*/,
+                        VkBuffer /*index_buffer*/,
+                        const std::unordered_map<MeshHandle, MeshDrawInfo> & /*mesh_draw_info*/,
+                        SceneRenderer & /*scene_renderer*/)
     {
-        // For now, reuse the same pipeline & descriptor set as the main draw.
-        // Later this can be a dedicated UI pipeline with its own shaders/layout.
-
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.handle());
-
-        VkBuffer vertexBuffers[] = {vertex_buffer};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
-
-        vkCmdBindIndexBuffer(cmd, index_buffer, 0, VK_INDEX_TYPE_UINT16);
-
-        VkDescriptorSet ds = frame.descriptor_set();
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_layout.handle(), 0, 1, &ds, 0, nullptr);
-
-        // A second draw – conceptually your "UI" or overlay.
-        vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
+        // Currently a no-op. Hook for future UI/overlay rendering using the same buffers.
     }
 
 } // namespace ankh

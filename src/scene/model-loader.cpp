@@ -118,7 +118,7 @@ namespace ankh
         for (size_t node_idx = 0; node_idx < gltf.nodes.size(); ++node_idx)
         {
             const auto &node = gltf.nodes[node_idx];
-            
+
             if (node.mesh < 0 || node.mesh >= static_cast<int>(gltf.meshes.size()))
             {
                 continue;
@@ -242,7 +242,9 @@ namespace ankh
                 {
                     indices.resize(vertex_count);
                     for (uint32_t i = 0; i < static_cast<uint32_t>(vertex_count); ++i)
+                    {
                         indices[i] = i;
+                    }
                 }
 
                 Mesh mesh(std::move(vertices), std::move(indices));

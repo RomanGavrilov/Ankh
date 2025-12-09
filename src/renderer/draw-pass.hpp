@@ -1,6 +1,10 @@
 // src/renderer/draw-pass.hpp
 #pragma once
 
+#include <unordered_map>
+
+#include "renderer/mesh-draw-info.hpp"
+#include "scene/renderable.hpp"
 #include "utils/types.hpp"
 
 namespace ankh
@@ -30,7 +34,7 @@ namespace ankh
                     uint32_t image_index,
                     VkBuffer vertex_buffer,
                     VkBuffer index_buffer,
-                    uint32_t index_count,
+                    const std::unordered_map<MeshHandle, MeshDrawInfo> &mesh_draw_info,
                     SceneRenderer &scene_renderer);
 
       private:

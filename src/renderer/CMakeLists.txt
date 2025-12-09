@@ -5,6 +5,7 @@ add_library(ankh_renderer STATIC
     draw-pass.cpp
     ui-pass.cpp
     scene-renderer.cpp
+    gpu-mesh-pool.cpp
 )
 
 target_link_libraries(ankh_renderer

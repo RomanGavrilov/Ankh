@@ -1,6 +1,10 @@
 // src/renderer/ui-pass.hpp
 #pragma once
 
+#include <unordered_map>
+
+#include "renderer/mesh-draw-info.hpp"
+#include "scene/renderable.hpp"
 #include "utils/types.hpp"
 
 namespace ankh
@@ -10,8 +14,9 @@ namespace ankh
     class GraphicsPipeline;
     class PipelineLayout;
     class FrameContext;
+    class SceneRenderer;
 
-    // Simple second pass (e.g. UI/overlay). For now it just issues another draw.
+    // Simple second pass (UI/overlay hook). Currently no geometry.
     class UiPass
     {
       public:
@@ -21,16 +26,13 @@ namespace ankh
                const GraphicsPipeline &pipeline,
                const PipelineLayout &layout);
 
-        // Assumes:
-        //  - command buffer already begun
-        //  - render pass already active
-        //  - viewport/scissor already set
         void record(VkCommandBuffer cmd,
                     FrameContext &frame,
                     uint32_t image_index,
                     VkBuffer vertex_buffer,
                     VkBuffer index_buffer,
-                    uint32_t index_count);
+                    const std::unordered_map<MeshHandle, MeshDrawInfo> &mesh_draw_info,
+                    SceneRenderer &scene_renderer);
 
       private:
         VkDevice m_device{VK_NULL_HANDLE};

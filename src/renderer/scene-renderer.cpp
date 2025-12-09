@@ -39,9 +39,7 @@ namespace ankh
             float speedDegrees = 10.0f + i * 30.0f; // increasing speed by index
             float speed = glm::radians(speedDegrees);
 
-            glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), time * speed, glm::vec3(0, 0, 1));
-
-            r.transform = r.base_transform * rotation;
+            r.transform = glm::rotate(r.base_transform, time * 0.5f, glm::vec3(0.0f, 1.0f, 0.0f));
 
             ++i;
         }
