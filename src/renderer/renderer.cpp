@@ -17,6 +17,8 @@
 #include "scene/camera.hpp"
 #include "scene/material-pool.hpp"
 #include "scene/mesh-pool.hpp"
+#include "scene/model-loader.hpp"
+#include "scene/model.hpp"
 #include "scene/renderable.hpp"
 
 #include "ui-pass.hpp"
@@ -40,6 +42,9 @@
 #include "frame/frame-context.hpp"
 
 #include "sync/frame-sync.hpp"
+
+#include "renderer/gpu-mesh-pool.hpp"
+#include "renderer/mesh-draw-info.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -109,31 +114,41 @@ namespace ankh
 
         m_scene_renderer = std::make_unique<SceneRenderer>();
 
-        Mesh quad = Mesh::make_colored_quad();
-        m_quad_mesh_handle = m_scene_renderer->mesh_pool().create(std::move(quad));
-
-        MaterialHandle material_handle = m_scene_renderer->default_material_handle();
-
         {
-            Renderable r1{};
-            r1.mesh = m_quad_mesh_handle;
-            r1.material = material_handle;
-            r1.base_transform = glm::mat4(1.0f);
-            r1.base_transform = glm::translate(glm::mat4(1.0f), glm::vec3(-0.7f, 0.0f, 0.0f));
+            // adjust path to where you actually put Box.gltf or Box.glb
+            Model model = ModelLoader::load_gltf("D:\\Rep\\Ankh\\assets\\models\\cube.gltf",
+                                                 m_scene_renderer->mesh_pool(),
+                                                 m_scene_renderer->material_pool());
 
-            Renderable r2{};
-            r2.mesh = m_quad_mesh_handle;
-            r2.material = material_handle;
-            r2.base_transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.7f, 0.0f, 0.0f));
-            r2.transform = r2.base_transform;
+            MaterialHandle default_mat = m_scene_renderer->default_material_handle();
 
-            m_scene_renderer->renderables().push_back(r1);
-            m_scene_renderer->renderables().push_back(r2);
+            for (const auto &node : model.nodes())
+            {
+                if (node.mesh == INVALID_MESH_HANDLE)
+                {
+                    continue;
+                }
+
+                Renderable r{};
+                r.mesh = node.mesh;
+                r.material =
+                    (node.material == INVALID_MATERIAL_HANDLE) ? default_mat : node.material;
+                r.base_transform = node.local_transform;
+                r.transform = r.base_transform;
+
+                m_scene_renderer->renderables().push_back(r);
+            }
         }
 
+        m_gpu_mesh_pool = std::make_unique<GpuMeshPool>(m_context->physical_device().handle(),
+                                                        m_context->device_handle(),
+                                                        *m_upload_context);
+
+        // Build unified vertex/index buffers from all meshes in the MeshPool
+        m_gpu_mesh_pool->build_from_mesh_pool(m_scene_renderer->mesh_pool(),
+                                              m_context->graphics_queue());
+
         create_framebuffers();
-        create_vertex_buffer();
-        create_index_buffer();
         create_descriptor_pool();
         create_texture();
         create_frames();
@@ -155,70 +170,6 @@ namespace ankh
 
         m_swapchain.reset();
         m_render_pass.reset();
-    }
-
-    void Renderer::create_vertex_buffer()
-    {
-        const Mesh &mesh = m_scene_renderer->mesh_pool().get(m_quad_mesh_handle);
-        const auto &verts = mesh.vertices();
-
-        VkDeviceSize size = sizeof(Vertex) * verts.size();
-
-        Buffer staging(m_context->physical_device().handle(),
-                       m_context->device_handle(),
-                       size,
-                       VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        {
-            void *data = staging.map(0, size);
-            std::memcpy(data, verts.data(), static_cast<size_t>(size));
-            staging.unmap();
-        }
-
-        m_vertex_buffer = std::make_unique<Buffer>(m_context->physical_device().handle(),
-                                                   m_context->device_handle(),
-                                                   size,
-                                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-        m_upload_context->copy_buffer(m_context->graphics_queue(),
-                                      staging.handle(),
-                                      m_vertex_buffer->handle(),
-                                      size);
-    }
-
-    void Renderer::create_index_buffer()
-    {
-        const Mesh &mesh = m_scene_renderer->mesh_pool().get(m_quad_mesh_handle);
-        const auto &indices = mesh.indices();
-
-        VkDeviceSize size = sizeof(uint16_t) * indices.size();
-
-        Buffer staging(m_context->physical_device().handle(),
-                       m_context->device_handle(),
-                       size,
-                       VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        {
-            void *data = staging.map(0, size);
-            std::memcpy(data, indices.data(), static_cast<size_t>(size));
-            staging.unmap();
-        }
-
-        m_index_buffer = std::make_unique<Buffer>(m_context->physical_device().handle(),
-                                                  m_context->device_handle(),
-                                                  size,
-                                                  VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                                      VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-        m_upload_context->copy_buffer(m_context->graphics_queue(),
-                                      staging.handle(),
-                                      m_index_buffer->handle(),
-                                      size);
     }
 
     void Renderer::create_descriptor_pool()
@@ -349,8 +300,8 @@ namespace ankh
         rp_info.renderArea.extent = m_swapchain->extent();
 
         std::array<VkClearValue, 2> clear_values{};
-        clear_values[0].color = {0.0f, 0.0f, 0.0f, 1.0f}; // color
-        clear_values[1].depthStencil = {1.0f, 0};         // depth (clear to far, stencil 0)
+        clear_values[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+        clear_values[1].depthStencil = {1.0f, 0};
 
         rp_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
         rp_info.pClearValues = clear_values.data();
@@ -372,26 +323,24 @@ namespace ankh
         scissor.extent = m_swapchain->extent();
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-        const Mesh &mesh = m_scene_renderer->mesh_pool().get(m_quad_mesh_handle);
-        const uint32_t index_count = static_cast<uint32_t>(mesh.index_count());
+        if (!m_gpu_mesh_pool)
+        {
+            vkCmdEndRenderPass(cmd);
+            frame.end();
+            return;
+        }
 
-        m_draw_pass->record(cmd,
-                            frame,
-                            image_index,
-                            m_vertex_buffer->handle(),
-                            m_index_buffer->handle(),
-                            index_count,
-                            *m_scene_renderer);
+        VkBuffer vb = m_gpu_mesh_pool->vertex_buffer();
+        VkBuffer ib = m_gpu_mesh_pool->index_buffer();
+        const auto &meshInfo = m_gpu_mesh_pool->draw_info();
 
-        // --- UI pass ---
-        m_ui_pass->record(cmd,
-                          frame,
-                          image_index,
-                          m_vertex_buffer->handle(),
-                          m_index_buffer->handle(),
-                          index_count);
+        if (vb != VK_NULL_HANDLE && ib != VK_NULL_HANDLE)
+        {
+            m_draw_pass->record(cmd, frame, image_index, vb, ib, meshInfo, *m_scene_renderer);
 
-        // --- End render pass + command buffer ---
+            m_ui_pass->record(cmd, frame, image_index, vb, ib, meshInfo, *m_scene_renderer);
+        }
+
         vkCmdEndRenderPass(cmd);
         frame.end();
     }

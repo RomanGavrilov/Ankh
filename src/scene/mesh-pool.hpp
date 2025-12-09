@@ -45,8 +45,33 @@ namespace ankh
         Mesh &get(MeshHandle h)
         {
             if (!valid(h))
+            {
                 throw std::runtime_error("MeshPool::get: invalid handle");
+            }
+
             return *m_meshes[h];
+        }
+
+        std::vector<MeshHandle> handles() const
+        {
+            std::vector<MeshHandle> result;
+
+            if (m_meshes.size() <= 1)
+            {
+                return result;
+            }
+
+            result.reserve(m_meshes.size() - 1);
+
+            for (MeshHandle h = 1; h < static_cast<MeshHandle>(m_meshes.size()); ++h)
+            {
+                if (valid(h))
+                {
+                    result.push_back(h);
+                }
+            }
+
+            return result;
         }
 
       private:

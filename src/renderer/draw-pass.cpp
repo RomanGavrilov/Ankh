@@ -1,17 +1,14 @@
 // src/renderer/draw-pass.cpp
 #include "renderer/draw-pass.hpp"
 
+#include <algorithm>
+
 #include "frame/frame-context.hpp"
 #include "pipeline/graphics-pipeline.hpp"
 #include "pipeline/pipeline-layout.hpp"
 #include "renderer/scene-renderer.hpp"
 #include "renderpass/render-pass.hpp"
-#include "scene/camera.hpp"
-#include "scene/material.hpp"
-#include "scene/renderable.hpp"
 #include "swapchain/swapchain.hpp"
-#include "utils/logging.hpp"
-#include "utils/types.hpp"
 
 namespace ankh
 {
@@ -34,55 +31,60 @@ namespace ankh
                           uint32_t /*image_index*/,
                           VkBuffer vertex_buffer,
                           VkBuffer index_buffer,
-                          uint32_t index_count,
-                          SceneRenderer &scene)
+                          const std::unordered_map<MeshHandle, MeshDrawInfo> &mesh_draw_info,
+                          SceneRenderer &scene_renderer)
     {
+        if (vertex_buffer == VK_NULL_HANDLE || index_buffer == VK_NULL_HANDLE)
+        {
+            return;
+        }
+
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.handle());
 
-        // Vertex buffer
-        VkBuffer vertexBuffers[] = {vertex_buffer};
-
         VkDeviceSize offsets[] = {0};
-
-        vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
-
-        // Index buffer
+        vkCmdBindVertexBuffers(cmd, 0, 1, &vertex_buffer, offsets);
         vkCmdBindIndexBuffer(cmd, index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-        // Descriptor set
-        VkDescriptorSet ds = frame.descriptor_set();
-
+        VkDescriptorSet set = frame.descriptor_set();
         vkCmdBindDescriptorSets(cmd,
                                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 m_layout.handle(),
                                 0,
                                 1,
-                                &ds,
+                                &set,
                                 0,
                                 nullptr);
 
-        const auto &renderables = scene.renderables();
-        const uint32_t drawCount = static_cast<uint32_t>(renderables.size());
+        const auto &renderables = scene_renderer.renderables();
+        const uint32_t capacity = frame.object_capacity();
+        const uint32_t count =
+            std::min<uint32_t>(static_cast<uint32_t>(renderables.size()), capacity);
 
-        for (uint32_t i = 0; i < drawCount; ++i)
+        for (uint32_t i = 0; i < count; ++i)
         {
-            const auto &r = renderables[i];
-            if (!r.mesh || !r.material)
+            MeshHandle meshHandle = renderables[i].mesh;
+            auto it = mesh_draw_info.find(meshHandle);
+            if (it == mesh_draw_info.end())
             {
-                ANKH_LOG_WARN("[DrawPass] Skipping renderable: missing mesh or material.");
+                // Mesh has no GPU range; skip (should not happen in normal cases)
                 continue;
             }
 
-            uint32_t objectIndex = i;
+            const MeshDrawInfo &info = it->second;
+
+            struct ObjectPC
+            {
+                uint32_t objectIndex;
+            } pc{i};
 
             vkCmdPushConstants(cmd,
                                m_layout.handle(),
                                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                                0,
-                               sizeof(uint32_t),
-                               &objectIndex);
+                               sizeof(ObjectPC),
+                               &pc);
 
-            vkCmdDrawIndexed(cmd, index_count, 1, 0, 0, 0);
+            vkCmdDrawIndexed(cmd, info.indexCount, 1, info.firstIndex, info.vertexOffset, 0);
         }
     }
 

@@ -5,6 +5,7 @@
 #include "utils/types.hpp"
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 namespace ankh
@@ -31,7 +32,7 @@ namespace ankh
     class FrameSync;
     class UiPass;
     class SceneRenderer;
-    class Mesh;
+    class GpuMeshPool;
     class Texture;
 
     class Renderer
@@ -45,9 +46,6 @@ namespace ankh
       private:
         void init_vulkan();
         void create_framebuffers();
-
-        void create_vertex_buffer();
-        void create_index_buffer();
 
         void create_descriptor_pool();
         void create_texture();
@@ -69,8 +67,6 @@ namespace ankh
         std::unique_ptr<DescriptorPool> m_descriptor_pool;
         std::unique_ptr<PipelineLayout> m_pipeline_layout;
         std::unique_ptr<GraphicsPipeline> m_graphics_pipeline;
-        std::unique_ptr<Buffer> m_vertex_buffer;
-        std::unique_ptr<Buffer> m_index_buffer;
         std::unique_ptr<UploadContext> m_upload_context;
         std::unique_ptr<DrawPass> m_draw_pass;
         std::unique_ptr<UiPass> m_ui_pass;
@@ -80,7 +76,7 @@ namespace ankh
         std::vector<FrameContext> m_frames;
         std::unique_ptr<FrameSync> m_frame_sync;
 
-        MeshHandle m_quad_mesh_handle;
+        std::unique_ptr<GpuMeshPool> m_gpu_mesh_pool;
     };
 
 } // namespace ankh
