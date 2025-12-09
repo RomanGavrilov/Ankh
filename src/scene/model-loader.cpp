@@ -327,6 +327,10 @@ namespace ankh
                 }
             }
 
+            computeBounds(vertices);
+            ANKH_LOG_INFO("Built mesh with " + std::to_string(vertices.size()) + " vertices, " +
+                          std::to_string(indices.size()) + " indices");
+
             return Mesh(std::move(vertices), std::move(indices));
         }
 

@@ -115,8 +115,8 @@ namespace ankh
         m_scene_renderer = std::make_unique<SceneRenderer>();
 
         {
-            // adjust path to where you actually put Box.gltf or Box.glb
-            Model model = ModelLoader::load_gltf("D:\\Rep\\Ankh\\assets\\models\\cube.gltf",
+            // Load cube model from assets directory
+            Model model = ModelLoader::load_gltf("assets/models/cube.gltf",
                                                  m_scene_renderer->mesh_pool(),
                                                  m_scene_renderer->material_pool());
 
