@@ -116,9 +116,10 @@ namespace ankh
 
         {
             // adjust path to where you actually put Box.gltf or Box.glb
-            Model model = ModelLoader::load_gltf("D:\\Rep\\Ankh\\assets\\models\\cube.gltf",
-                                                 m_scene_renderer->mesh_pool(),
-                                                 m_scene_renderer->material_pool());
+            Model model =
+                ModelLoader::load_gltf("D:\\Rep\\Ankh\\assets\\models\\cerberus\\cerberus.gltf",
+                                       m_scene_renderer->mesh_pool(),
+                                       m_scene_renderer->material_pool());
 
             MaterialHandle default_mat = m_scene_renderer->default_material_handle();
 
@@ -137,6 +138,20 @@ namespace ankh
                 r.transform = r.base_transform;
 
                 m_scene_renderer->renderables().push_back(r);
+            }
+
+            SceneBounds bounds = m_scene_renderer->compute_scene_bounds();
+            if (bounds.valid)
+            {
+                glm::vec3 center = 0.5f * (bounds.min + bounds.max);
+                float radius = glm::length(bounds.max - bounds.min) * 0.5f;
+
+                // simple heuristic distance; works for most scenes
+                float distance = (radius > 0.0f) ? radius * 2.5f : 5.0f;
+
+                auto &cam = m_scene_renderer->camera();
+                cam.set_target(center);
+                cam.set_position(center + glm::vec3(distance, distance, distance));
             }
         }
 
@@ -180,29 +195,87 @@ namespace ankh
 
     void Renderer::create_texture()
     {
-        // Tiny 2x2 checkerboard (white/black) in RGBA8
-        const uint32_t texWidth = 2;
-        const uint32_t texHeight = 2;
-        const VkDeviceSize imageSize = texWidth * texHeight * 4; // 4 bytes per pixel
+        // Try to find a material in the scene that has a baseColor image
+        std::shared_ptr<const CpuImage> sourceImage;
 
-        const std::array<uint8_t, 16> pixels = {// row 0: white, black
-                                                255,
-                                                255,
-                                                255,
-                                                255, // RGBA
-                                                0,
-                                                0,
-                                                0,
-                                                255,
-                                                // row 1: black, white
-                                                0,
-                                                0,
-                                                0,
-                                                255,
-                                                255,
-                                                255,
-                                                255,
-                                                255};
+        auto &renderables = m_scene_renderer->renderables();
+        auto &materials = m_scene_renderer->material_pool();
+
+        for (const auto &r : renderables)
+        {
+            if (!materials.valid(r.material))
+                continue;
+
+            const Material &mat = materials.get(r.material);
+            if (mat.has_base_color_image())
+            {
+                sourceImage = mat.base_color_image();
+                break;
+            }
+        }
+
+        std::vector<uint8_t> pixels;
+        uint32_t texWidth = 0;
+        uint32_t texHeight = 0;
+
+        if (sourceImage && sourceImage->width > 0 && sourceImage->height > 0)
+        {
+            // Convert to RGBA8 if needed
+            texWidth = static_cast<uint32_t>(sourceImage->width);
+            texHeight = static_cast<uint32_t>(sourceImage->height);
+
+            const int comp = sourceImage->components;
+            const auto &src = sourceImage->pixels;
+
+            if (comp == 4)
+            {
+                pixels = src; // already RGBA8
+            }
+            else if (comp == 3)
+            {
+                pixels.resize(static_cast<size_t>(texWidth) * texHeight * 4);
+                for (uint32_t i = 0; i < texWidth * texHeight; ++i)
+                {
+                    pixels[4 * i + 0] = src[3 * i + 0];
+                    pixels[4 * i + 1] = src[3 * i + 1];
+                    pixels[4 * i + 2] = src[3 * i + 2];
+                    pixels[4 * i + 3] = 255;
+                }
+            }
+            else
+            {
+                ANKH_LOG_WARN("Unsupported image component count in baseColorTexture; "
+                              "falling back to checkerboard");
+            }
+        }
+
+        // Fallback if no suitable glTF image
+        if (pixels.empty())
+        {
+            // Tiny 2x2 checkerboard (white/black) in RGBA8
+            texWidth = 2;
+            texHeight = 2;
+            pixels = {// row 0: white, black
+                      255,
+                      255,
+                      255,
+                      255,
+                      0,
+                      0,
+                      0,
+                      255,
+                      // row 1: black, white
+                      0,
+                      0,
+                      0,
+                      255,
+                      255,
+                      255,
+                      255,
+                      255};
+        }
+
+        const VkDeviceSize imageSize = static_cast<VkDeviceSize>(pixels.size());
 
         // Staging buffer
         Buffer staging(m_context->physical_device().handle(),
@@ -359,7 +432,11 @@ namespace ankh
         const auto &cam = m_scene_renderer->camera();
         fubo.view = cam.view();
         fubo.proj = cam.proj();
-        fubo.globalAlbedo = glm::vec4(1.0f); // or some global tint
+        fubo.globalAlbedo = glm::vec4(1.0f);
+
+        // simple directional light from above-front-left
+        glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f));
+        fubo.lightDir = glm::vec4(lightDir, 0.0f);
 
         std::memcpy(frame.uniform_mapped(), &fubo, sizeof(fubo));
 

@@ -46,4 +46,61 @@ namespace ankh
         }
     }
 
+    SceneBounds SceneRenderer::compute_scene_bounds() const
+    {
+        SceneBounds result{};
+        if (m_renderables.empty())
+        {
+            return result;
+        }
+
+        glm::vec3 globalMin(std::numeric_limits<float>::max(),
+                            std::numeric_limits<float>::max(),
+                            std::numeric_limits<float>::max());
+
+        glm::vec3 globalMax(-std::numeric_limits<float>::max(),
+                            -std::numeric_limits<float>::max(),
+                            -std::numeric_limits<float>::max());
+
+        bool any = false;
+
+        for (const auto &r : m_renderables)
+        {
+            if (!m_mesh_pool.valid(r.mesh))
+            {
+                continue;
+            }
+
+            const Mesh &mesh = m_mesh_pool.get(r.mesh);
+            const auto &verts = mesh.vertices();
+
+            if (verts.empty())
+            {
+                continue;
+            }
+
+            const glm::mat4 M = r.base_transform; // use base transform for framing
+
+            for (const auto &v : verts)
+            {
+                glm::vec4 wp4 = M * glm::vec4(v.pos, 1.0f);
+                glm::vec3 p = glm::vec3(wp4);
+
+                globalMin = glm::min(globalMin, p);
+                globalMax = glm::max(globalMax, p);
+                any = true;
+            }
+        }
+
+        if (!any)
+        {
+            return result;
+        }
+
+        result.min = globalMin;
+        result.max = globalMax;
+        result.valid = true;
+        return result;
+    }
+
 } // namespace ankh

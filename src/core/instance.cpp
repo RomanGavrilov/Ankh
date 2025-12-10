@@ -24,7 +24,7 @@ namespace ankh
                 app.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
                 app.pEngineName = "Ankh";
                 app.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-                app.apiVersion = VK_API_VERSION_1_0;
+                app.apiVersion = VK_API_VERSION_1_3;
 
                 auto extensions = get_required_extensions();
 

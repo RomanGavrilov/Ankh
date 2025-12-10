@@ -20,7 +20,7 @@ namespace ankh
         std::size_t vertex_count() const { return m_vertices.size(); }
         std::size_t index_count() const { return m_indices.size(); }
 
-        // For now: helper to create the same colored quad you already draw.
+        // Create simple colored quad mesh
         static Mesh make_colored_quad();
 
       private:

@@ -16,28 +16,13 @@ namespace ankh
 {
     namespace
     {
+        // -----------------------------
+        // Node transform helpers
+        // -----------------------------
 
-        auto computeBounds = [](const std::vector<Vertex> &verts)
-        {
-            glm::vec3 minv(std::numeric_limits<float>::max());
-            glm::vec3 maxv(-std::numeric_limits<float>::max());
-
-            for (const auto &v : verts)
-            {
-                minv = glm::min(minv, v.pos);
-                maxv = glm::max(maxv, v.pos);
-            }
-
-            ANKH_LOG_INFO("Mesh bounds min=(" + std::to_string(minv.x) + ", " +
-                          std::to_string(minv.y) + ", " + std::to_string(minv.z) + "), max=(" +
-                          std::to_string(maxv.x) + ", " + std::to_string(maxv.y) + ", " +
-                          std::to_string(maxv.z) + ")");
-        };
-
-        // Build local transform from TRS or matrix
         glm::mat4 node_local_transform(const tinygltf::Node &node)
         {
-            // Full 4x4 matrix has highest priority
+            // 1) Full 4x4 matrix (highest priority)
             if (!node.matrix.empty() && node.matrix.size() == 16)
             {
                 glm::mat4 M(1.0f);
@@ -50,7 +35,7 @@ namespace ankh
 
             glm::mat4 M(1.0f);
 
-            // Translation
+            // 2) Translation
             if (node.translation.size() == 3)
             {
                 glm::vec3 t(static_cast<float>(node.translation[0]),
@@ -59,7 +44,7 @@ namespace ankh
                 M = glm::translate(M, t);
             }
 
-            // Rotation (quaternion)
+            // 3) Rotation (quaternion, x,y,z,w)
             if (node.rotation.size() == 4)
             {
                 glm::quat q(static_cast<float>(node.rotation[3]), // w
@@ -69,7 +54,7 @@ namespace ankh
                 M *= glm::mat4_cast(q);
             }
 
-            // Scale
+            // 4) Scale
             if (node.scale.size() == 3)
             {
                 glm::vec3 s(static_cast<float>(node.scale[0]),
@@ -81,7 +66,10 @@ namespace ankh
             return M;
         }
 
-        // Helper: get base pointer and stride for a float accessor
+        // -----------------------------
+        // Attribute view helper
+        // -----------------------------
+
         struct FloatAttributeView
         {
             const unsigned char *base{nullptr};
@@ -105,6 +93,7 @@ namespace ankh
             }
 
             const tinygltf::BufferView &bufView = model.bufferViews[accessor.bufferView];
+
             if (bufView.buffer < 0 || bufView.buffer >= static_cast<int>(model.buffers.size()))
             {
                 ANKH_LOG_WARN(std::string("BufferView for ") + debugName +
@@ -129,8 +118,11 @@ namespace ankh
             return view;
         }
 
-        // Read material baseColorFactor into glm::vec4
-        glm::vec4 load_base_color(const tinygltf::Material &gm)
+        // -----------------------------
+        // Material helpers
+        // -----------------------------
+
+        glm::vec4 load_base_color_factor(const tinygltf::Material &gm)
         {
             glm::vec4 baseColor(1.0f);
 
@@ -148,7 +140,46 @@ namespace ankh
             return baseColor;
         }
 
-        // Build a Mesh from one glTF primitive
+        std::shared_ptr<CpuImage> load_base_color_image(const tinygltf::Model &gltf,
+                                                        const tinygltf::Material &gm)
+        {
+            const auto &pbr = gm.pbrMetallicRoughness;
+
+            if (pbr.baseColorTexture.index < 0 ||
+                pbr.baseColorTexture.index >= static_cast<int>(gltf.textures.size()))
+            {
+                return nullptr;
+            }
+
+            const tinygltf::Texture &tex = gltf.textures[pbr.baseColorTexture.index];
+
+            if (tex.source < 0 || tex.source >= static_cast<int>(gltf.images.size()))
+            {
+                ANKH_LOG_WARN("Texture source index out of range for baseColorTexture; ignoring");
+                return nullptr;
+            }
+
+            const tinygltf::Image &img = gltf.images[tex.source];
+
+            if (img.width <= 0 || img.height <= 0 || img.image.empty())
+            {
+                ANKH_LOG_WARN("baseColorTexture image has no data; ignoring");
+                return nullptr;
+            }
+
+            auto cpuImg = std::make_shared<CpuImage>();
+            cpuImg->width = img.width;
+            cpuImg->height = img.height;
+            cpuImg->components = img.component;
+            cpuImg->pixels = img.image; // copy byte data
+
+            return cpuImg;
+        }
+
+        // -----------------------------
+        // Mesh / primitive builder
+        // -----------------------------
+
         Mesh build_mesh_from_primitive(const tinygltf::Model &gltf, const tinygltf::Primitive &prim)
         {
             // --- POSITION (required) ---
@@ -172,6 +203,26 @@ namespace ankh
             }
 
             size_t vertexCount = posView.count;
+
+            // --- NORMAL (optional, float VEC3) ---
+            const tinygltf::Accessor *normalAcc = nullptr;
+            FloatAttributeView normalView{};
+            auto normIt = prim.attributes.find("NORMAL");
+            if (normIt != prim.attributes.end())
+            {
+                normalAcc = &gltf.accessors[normIt->second];
+
+                if (normalAcc->type == TINYGLTF_TYPE_VEC3 &&
+                    normalAcc->componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)
+                {
+                    normalView = make_float_view(gltf, *normalAcc, 3, "NORMAL");
+                }
+                else
+                {
+                    ANKH_LOG_WARN("NORMAL has unsupported format; using default (0,0,1)");
+                    normalAcc = nullptr;
+                }
+            }
 
             // --- COLOR_0 (optional, float VEC3/VEC4) ---
             const tinygltf::Accessor *colorAcc = nullptr;
@@ -217,6 +268,7 @@ namespace ankh
                 }
             }
 
+            // Build vertex array
             std::vector<Vertex> vertices;
             vertices.resize(vertexCount);
 
@@ -227,6 +279,15 @@ namespace ankh
                 // Position
                 const float *p = reinterpret_cast<const float *>(posView.base + v * posView.stride);
                 vert.pos = glm::vec3(p[0], p[1], p[2]);
+
+                glm::vec3 normal(0.0f, 0.0f, 1.0f);
+                if (normalAcc && normalView.base && v < normalView.count)
+                {
+                    const float *n =
+                        reinterpret_cast<const float *>(normalView.base + v * normalView.stride);
+                    normal = glm::vec3(n[0], n[1], n[2]);
+                }
+                vert.normal = normal;
 
                 // Color
                 glm::vec3 color(1.0f);
@@ -241,7 +302,7 @@ namespace ankh
                     }
                     else // VEC4
                     {
-                        color = glm::vec3(c[0], c[1], c[2]); // ignore alpha for now
+                        color = glm::vec3(c[0], c[1], c[2]);
                     }
                 }
                 vert.color = color;
@@ -259,7 +320,7 @@ namespace ankh
                 vertices[v] = vert;
             }
 
-            // --- Indices ---
+            // Indices
             std::vector<uint16_t> indices;
 
             if (prim.indices >= 0)
@@ -309,7 +370,6 @@ namespace ankh
 
                     if (value > std::numeric_limits<uint16_t>::max())
                     {
-                        // Our Mesh uses uint16 indices; bail out loudly
                         throw std::runtime_error("Index value exceeds uint16 range; upgrade Mesh "
                                                  "to uint32 to support this model");
                     }
@@ -319,7 +379,6 @@ namespace ankh
             }
             else
             {
-                // Non-indexed primitive: generate a linear index buffer
                 indices.resize(vertexCount);
                 for (uint32_t i = 0; i < static_cast<uint32_t>(vertexCount); ++i)
                 {
@@ -331,6 +390,10 @@ namespace ankh
         }
 
     } // namespace
+
+    // -----------------------------
+    // Public API
+    // -----------------------------
 
     Model ModelLoader::load_gltf(const std::string &path,
                                  MeshPool &mesh_pool,
@@ -372,19 +435,25 @@ namespace ankh
 
         for (const auto &gm : gltf.materials)
         {
-            glm::vec4 baseColor = load_base_color(gm);
+            glm::vec4 baseColor = load_base_color_factor(gm);
             Material mat(baseColor);
+
+            auto cpuImg = load_base_color_image(gltf, gm);
+            if (cpuImg)
+            {
+                mat.set_base_color_image(cpuImg);
+            }
+            else
+            {
+                ANKH_LOG_INFO("Material has NO baseColorTexture.");
+            }
+
             MaterialHandle mh = material_pool.create(mat);
             material_handles.push_back(mh);
         }
 
-        // --- Traverse scene graph and build ModelNodes ---
-        // Use default scene if specified, else scene 0
+        // --- Scene traversal ---
         int sceneIndex = gltf.defaultScene >= 0 ? gltf.defaultScene : 0;
-        if (sceneIndex < 0 || sceneIndex >= static_cast<int>(gltf.scenes.size()))
-        {
-            ANKH_LOG_WARN("glTF has no valid scenes; traversing all nodes as roots");
-        }
 
         auto processNode = [&](auto &&self, int nodeIndex, const glm::mat4 &parentTransform) -> void
         {
@@ -398,7 +467,7 @@ namespace ankh
             glm::mat4 local = node_local_transform(node);
             glm::mat4 world = parentTransform * local;
 
-            // Mesh and primitives
+            // Mesh + primitives
             if (node.mesh >= 0 && node.mesh < static_cast<int>(gltf.meshes.size()))
             {
                 const tinygltf::Mesh &gltfMesh = gltf.meshes[node.mesh];
@@ -450,7 +519,7 @@ namespace ankh
         }
         else
         {
-            // Fallback: treat all nodes as roots
+            ANKH_LOG_WARN("glTF has no valid scenes; traversing all nodes as roots");
             for (int nodeIndex = 0; nodeIndex < static_cast<int>(gltf.nodes.size()); ++nodeIndex)
             {
                 processNode(processNode, nodeIndex, identity);

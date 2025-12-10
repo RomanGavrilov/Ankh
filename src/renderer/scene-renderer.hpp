@@ -6,9 +6,17 @@
 #include "scene/renderable.hpp"
 #include "utils/types.hpp"
 #include <memory>
+#include <vector>
 
 namespace ankh
 {
+    struct SceneBounds
+    {
+        glm::vec3 min{0.0f};
+        glm::vec3 max{0.0f};
+        bool valid{false};
+    };
+
     class FrameContext;
     class Swapchain;
     class Camera;
@@ -77,6 +85,8 @@ namespace ankh
         {
             return m_renderables;
         }
+
+        SceneBounds compute_scene_bounds() const;
 
       private:
         std::unique_ptr<Camera> m_camera;
