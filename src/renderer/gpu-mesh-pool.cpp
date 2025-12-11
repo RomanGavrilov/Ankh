@@ -45,7 +45,7 @@ namespace ankh
 
         if (allVertices.empty() || allIndices.empty())
         {
-            ANKH_LOG_WARN("GpuMeshPool::build_from_mesh_pool: no mesh data to upload.");
+            ANKH_LOG_WARN("[GpuMeshPool] BuildFromMeshPool: no mesh data to upload.");
             m_vertex_buffer.reset();
             m_index_buffer.reset();
             return;
@@ -107,8 +107,8 @@ namespace ankh
                                      indexBufferSize);
 
         ANKH_LOG_DEBUG("[GpuMeshPool] Uploaded " + std::to_string(allVertices.size()) +
-                      " vertices, " + std::to_string(allIndices.size()) + " indices, " +
-                      std::to_string(m_draw_info.size()) + " meshes.");
+                       " vertices, " + std::to_string(allIndices.size()) + " indices, " +
+                       std::to_string(m_draw_info.size()) + " meshes.");
     }
 
 } // namespace ankh

@@ -48,7 +48,6 @@ namespace ankh
             ci.ppEnabledLayerNames = layers;
         }
 
-        ANKH_LOG_DEBUG("[Device] Creating logical device");
         ANKH_VK_CHECK(vkCreateDevice(phys.handle(), &ci, nullptr, &m_device));
         ANKH_LOG_DEBUG("[Device] Created logical device");
 
