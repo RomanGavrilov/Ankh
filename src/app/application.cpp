@@ -7,10 +7,10 @@ namespace ankh
 
     void Application::run()
     {
-        ANKH_LOG_INFO("Starting application");
+        ANKH_LOG_DEBUG("[App] Starting application");
         Renderer renderer;
         renderer.run();
-        ANKH_LOG_INFO("Shutting down application");
+        ANKH_LOG_DEBUG("[App] Shutting down application");
     }
 
 } // namespace ankh

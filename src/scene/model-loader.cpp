@@ -399,7 +399,7 @@ namespace ankh
                                  MeshPool &mesh_pool,
                                  MaterialPool &material_pool)
     {
-        ANKH_LOG_INFO("ModelLoader::load_gltf(\"" + path + "\")");
+        ANKH_LOG_DEBUG("[ModelLoader] LoadGltf(\"" + path + "\")");
 
         tinygltf::Model gltf;
         tinygltf::TinyGLTF loader;
@@ -419,11 +419,11 @@ namespace ankh
 
         if (!warn.empty())
         {
-            ANKH_LOG_WARN("TinyGLTF warning: " + warn);
+            ANKH_LOG_WARN("[ModelLoader] TinyGLTF warning: " + warn);
         }
         if (!ok)
         {
-            ANKH_LOG_ERROR("Failed to load glTF: " + path + " error: " + err);
+            ANKH_LOG_ERROR("[ModelLoader] Failed to load glTF: " + path + " error: " + err);
             return Model(path);
         }
 
@@ -445,7 +445,7 @@ namespace ankh
             }
             else
             {
-                ANKH_LOG_INFO("Material has NO baseColorTexture.");
+                ANKH_LOG_DEBUG("[ModelLoader] Material has NO baseColorTexture");
             }
 
             MaterialHandle mh = material_pool.create(mat);
@@ -495,7 +495,7 @@ namespace ankh
                     }
                     catch (const std::exception &e)
                     {
-                        ANKH_LOG_WARN(std::string("Skipping primitive: ") + e.what());
+                        ANKH_LOG_WARN("[ModelLoader] Skipping primitive: " + std::string(e.what()));
                     }
                 }
             }
@@ -519,14 +519,14 @@ namespace ankh
         }
         else
         {
-            ANKH_LOG_WARN("glTF has no valid scenes; traversing all nodes as roots");
+            ANKH_LOG_WARN("[ModelLoader] glTF has no valid scenes; traversing all nodes as roots");
             for (int nodeIndex = 0; nodeIndex < static_cast<int>(gltf.nodes.size()); ++nodeIndex)
             {
                 processNode(processNode, nodeIndex, identity);
             }
         }
 
-        ANKH_LOG_INFO("ModelLoader::load_gltf loaded " + std::to_string(model.nodes().size()) +
+        ANKH_LOG_DEBUG("[ModelLoader] LoadGltf loaded " + std::to_string(model.nodes().size()) +
                       " model nodes.");
 
         return model;

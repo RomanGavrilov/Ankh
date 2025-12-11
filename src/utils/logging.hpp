@@ -8,16 +8,28 @@ namespace ankh
 {
     namespace log
     {
+        enum class Level
+        {
+            Debug = 0,
+            Info,
+            Warn,
+            Error,
+            None
+        };
+
         // Initialize logging backend (currently no-op, but hook point for future)
         void init();
-
+        void SetLevel(Level level);
         void info(const std::string &msg);
+        void debug(const std::string &msg);
         void warn(const std::string &msg);
         void error(const std::string &msg);
+
     } // namespace log
 } // namespace ankh
 
 #define ANKH_LOG_INFO(msg) ::ankh::log::info(msg)
+#define ANKH_LOG_DEBUG(msg) ::ankh::log::debug(msg)
 #define ANKH_LOG_WARN(msg) ::ankh::log::warn(msg)
 #define ANKH_LOG_ERROR(msg) ::ankh::log::error(msg)
 

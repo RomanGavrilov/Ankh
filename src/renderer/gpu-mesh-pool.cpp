@@ -106,7 +106,7 @@ namespace ankh
                                      m_index_buffer->handle(),
                                      indexBufferSize);
 
-        ANKH_LOG_INFO("GpuMeshPool: uploaded " + std::to_string(allVertices.size()) +
+        ANKH_LOG_DEBUG("[GpuMeshPool] Uploaded " + std::to_string(allVertices.size()) +
                       " vertices, " + std::to_string(allIndices.size()) + " indices, " +
                       std::to_string(m_draw_info.size()) + " meshes.");
     }

@@ -1,7 +1,7 @@
 #include "core/physical-device.hpp"
-#include <vector>
 #include <set>
 #include <stdexcept>
+#include <vector>
 
 namespace ankh
 {
@@ -22,7 +22,8 @@ namespace ankh
         return required.empty();
     }
 
-    static SwapChainSupportDetails query_swapchain_support(VkPhysicalDevice device, VkSurfaceKHR surface)
+    static SwapChainSupportDetails query_swapchain_support(VkPhysicalDevice device,
+                                                           VkSurfaceKHR surface)
     {
         SwapChainSupportDetails details{};
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
@@ -32,7 +33,10 @@ namespace ankh
         if (formatCount)
         {
             details.formats.resize(formatCount);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device,
+                                                 surface,
+                                                 &formatCount,
+                                                 details.formats.data());
         }
 
         uint32_t presentModeCount = 0;
@@ -40,7 +44,10 @@ namespace ankh
         if (presentModeCount)
         {
             details.presentModes.resize(presentModeCount);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.data());
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device,
+                                                      surface,
+                                                      &presentModeCount,
+                                                      details.presentModes.data());
         }
 
         return details;
@@ -51,22 +58,32 @@ namespace ankh
         QueueFamilyIndices indices{};
 
         uint32_t count = 0;
+
         vkGetPhysicalDeviceQueueFamilyProperties(device, &count, nullptr);
+
         std::vector<VkQueueFamilyProperties> families(count);
+
         vkGetPhysicalDeviceQueueFamilyProperties(device, &count, families.data());
 
         for (uint32_t i = 0; i < count; ++i)
         {
             if (families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            {
                 indices.graphicsFamily = i;
+            }
 
             VkBool32 presentSupport = VK_FALSE;
             vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+
             if (presentSupport)
+            {
                 indices.presentFamily = i;
+            }
 
             if (indices.isComplete())
+            {
                 break;
+            }
         }
 
         return indices;
@@ -75,9 +92,13 @@ namespace ankh
     PhysicalDevice::PhysicalDevice(VkInstance instance, VkSurfaceKHR surface)
     {
         uint32_t deviceCount = 0;
+
         vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+
         if (!deviceCount)
+        {
             throw std::runtime_error("failed to find GPUs with Vulkan support");
+        }
 
         std::vector<VkPhysicalDevice> devices(deviceCount);
         vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
@@ -85,14 +106,22 @@ namespace ankh
         for (auto dev : devices)
         {
             auto indices = find_queue_families(dev, surface);
+
             if (!indices.isComplete())
+            {
                 continue;
+            }
+
             if (!check_device_extension_support(dev))
+            {
                 continue;
+            }
 
             auto swapSupport = query_swapchain_support(dev, surface);
             if (swapSupport.formats.empty() || swapSupport.presentModes.empty())
+            {
                 continue;
+            }
 
             m_device = dev;
             m_indices = indices;
@@ -100,7 +129,9 @@ namespace ankh
         }
 
         if (!m_device)
+        {
             throw std::runtime_error("failed to find a suitable GPU");
+        }
     }
 
 } // namespace ankh

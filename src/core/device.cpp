@@ -2,6 +2,7 @@
 #include "core/physical-device.hpp"
 #include <set>
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -47,8 +48,9 @@ namespace ankh
             ci.ppEnabledLayerNames = layers;
         }
 
-        if (vkCreateDevice(phys.handle(), &ci, nullptr, &m_device) != VK_SUCCESS)
-            throw std::runtime_error("failed to create logical device");
+        ANKH_LOG_DEBUG("[Device] Creating logical device");
+        ANKH_VK_CHECK(vkCreateDevice(phys.handle(), &ci, nullptr, &m_device));
+        ANKH_LOG_DEBUG("[Device] Created logical device");
 
         vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_graphics_queue);
         vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_present_queue);

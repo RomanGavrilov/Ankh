@@ -57,7 +57,7 @@ namespace ankh
 
     Renderer::Renderer()
     {
-        ANKH_LOG_INFO("[Renderer] ObjectBuffer capacity per frame: " +
+        ANKH_LOG_DEBUG("[Renderer] ObjectBuffer capacity per frame: " +
                       std::to_string(ankh::config().maxObjects));
 
         init_vulkan();
