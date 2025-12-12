@@ -11,8 +11,6 @@ endif()
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-add_subdirectory(libs/glfw)
-add_subdirectory(libs/glm)
 
 find_package(Vulkan REQUIRED)
 
@@ -23,4 +21,13 @@ else()
     target_compile_options(ankh_warnings INTERFACE -Wall -Wextra -Wpedantic)
 endif()
 
+add_subdirectory(libs/glfw)
+add_subdirectory(libs/glm)
+
+add_subdirectory(libs/json)
+add_subdirectory(libs/stb)
+add_subdirectory(libs/tinygltf)
+add_subdirectory(libs/vma)
+
 add_subdirectory(src)
+

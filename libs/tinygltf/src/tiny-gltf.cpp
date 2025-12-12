@@ -3,4 +3,4 @@
 #define TINYGLTF_IMPLEMENTATION
 #define TINYGLTF_NO_EXTERNAL_IMAGE_LOADER
 
-#include <tiny_gltf.h>
+#include <tiny-gltf.h>

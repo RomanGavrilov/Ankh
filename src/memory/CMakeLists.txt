@@ -15,5 +15,6 @@ target_link_libraries(ankh_memory
         ankh_utils
         ankh_commands
         Vulkan::Vulkan
+        vma
         
 )

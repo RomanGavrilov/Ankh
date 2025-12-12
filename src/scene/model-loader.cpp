@@ -10,7 +10,7 @@
 #include <functional>
 #include <glm/gtc/quaternion.hpp>
 #include <limits>
-#include <tiny_gltf.h>
+#include <tiny-gltf.h>
 
 namespace ankh
 {
