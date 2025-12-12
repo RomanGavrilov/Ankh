@@ -2,6 +2,7 @@
 #pragma once
 
 #include "scene/renderable.hpp"
+#include "utils/config.hpp"
 #include "utils/types.hpp"
 
 #include <memory>

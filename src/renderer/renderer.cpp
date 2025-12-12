@@ -29,7 +29,6 @@
 #include "pipeline/graphics-pipeline.hpp"
 #include "pipeline/pipeline-layout.hpp"
 
-#include "utils/config.hpp"
 #include "utils/types.hpp"
 
 #include "memory/buffer.hpp"
@@ -58,7 +57,7 @@ namespace ankh
     Renderer::Renderer()
     {
         ANKH_LOG_DEBUG("[Renderer] ObjectBuffer capacity per frame: " +
-                      std::to_string(ankh::config().maxObjects));
+                       std::to_string(ankh::config().maxObjects));
 
         init_vulkan();
     }
@@ -73,7 +72,7 @@ namespace ankh
 
     void Renderer::init_vulkan()
     {
-        m_window = std::make_unique<Window>("Vulkan", kWidth, kHeight);
+        m_window = std::make_unique<Window>("Vulkan", ankh::config().Width, ankh::config().Height);
 
         // Context sets up instance, debug, surface, physical device, device
         m_context = std::make_unique<Context>(m_window->handle());
@@ -168,7 +167,7 @@ namespace ankh
         create_texture();
         create_frames();
 
-        m_frame_sync = std::make_unique<FrameSync>(kMaxFramesInFlight);
+        m_frame_sync = std::make_unique<FrameSync>(config().framesInFlight);
     }
 
     void Renderer::create_framebuffers()
@@ -189,8 +188,8 @@ namespace ankh
 
     void Renderer::create_descriptor_pool()
     {
-        m_descriptor_pool =
-            std::make_unique<DescriptorPool>(m_context->device_handle(), kMaxFramesInFlight);
+        m_descriptor_pool = std::make_unique<DescriptorPool>(m_context->device_handle(),
+                                                             ankh::config().framesInFlight);
     }
 
     void Renderer::create_texture()
@@ -326,7 +325,7 @@ namespace ankh
     void Renderer::create_frames()
     {
         m_frames.clear();
-        m_frames.reserve(kMaxFramesInFlight);
+        m_frames.reserve(ankh::config().framesInFlight);
 
         QueueFamilyIndices queues = m_context->queues();
         uint32_t graphicsFamily = queues.graphicsFamily.value();
@@ -334,20 +333,20 @@ namespace ankh
         VkDeviceSize uboSize = sizeof(FrameUBO);
         VkDeviceSize objectSize = sizeof(ObjectDataGPU) * ankh::config().maxObjects;
 
-        std::vector<VkDescriptorSetLayout> layouts(kMaxFramesInFlight,
+        std::vector<VkDescriptorSetLayout> layouts(ankh::config().framesInFlight,
                                                    m_descriptor_set_layout->handle());
 
         VkDescriptorSetAllocateInfo ai{};
         ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         ai.descriptorPool = m_descriptor_pool->handle();
-        ai.descriptorSetCount = kMaxFramesInFlight;
+        ai.descriptorSetCount = ankh::config().framesInFlight;
         ai.pSetLayouts = layouts.data();
 
-        std::vector<VkDescriptorSet> sets(kMaxFramesInFlight);
+        std::vector<VkDescriptorSet> sets(ankh::config().framesInFlight);
 
         ANKH_VK_CHECK(vkAllocateDescriptorSets(m_context->device_handle(), &ai, sets.data()));
 
-        for (uint32_t i = 0; i < kMaxFramesInFlight; ++i)
+        for (uint32_t i = 0; i < ankh::config().framesInFlight; ++i)
         {
             m_frames.emplace_back(m_context->physical_device().handle(),
                                   m_context->device_handle(),

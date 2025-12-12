@@ -1,20 +1,22 @@
 #include "core/debug-messenger.hpp"
+#include "utils/config.hpp"
 #include <iostream>
 
 namespace ankh
 {
 
-    static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT,
-        const VkDebugUtilsMessengerCallbackDataEXT *callbackData,
-        void *)
+    static VKAPI_ATTR VkBool32 VKAPI_CALL
+    debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                   VkDebugUtilsMessageTypeFlagsEXT,
+                   const VkDebugUtilsMessengerCallbackDataEXT *callbackData,
+                   void *)
     {
 
         if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
         {
             std::cerr << "validation: " << callbackData->pMessage << std::endl;
         }
+
         return VK_FALSE;
     }
 
@@ -22,15 +24,13 @@ namespace ankh
         : m_instance(instance)
     {
 
-        if (!kEnableValidation)
-            return;
-
-        auto vkCreateDebugUtilsMessengerEXT =
-            reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-                vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
+        auto vkCreateDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+            vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
 
         if (!vkCreateDebugUtilsMessengerEXT)
+        {
             return;
+        }
 
         VkDebugUtilsMessengerCreateInfoEXT ci{};
         ci.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -48,8 +48,10 @@ namespace ankh
 
     DebugMessenger::~DebugMessenger()
     {
-        if (!kEnableValidation || !m_messenger)
+        if (!ankh::config().validation || !m_messenger)
+        {
             return;
+        }
 
         auto vkDestroyDebugUtilsMessengerEXT =
             reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(

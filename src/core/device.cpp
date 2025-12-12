@@ -1,8 +1,9 @@
 #include "core/device.hpp"
 #include "core/physical-device.hpp"
+#include "utils/config.hpp"
+#include "utils/logging.hpp"
 #include <set>
 #include <stdexcept>
-#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -42,7 +43,7 @@ namespace ankh
         ci.ppEnabledExtensionNames = extensions;
 
         const char *layers[] = {"VK_LAYER_KHRONOS_validation"};
-        if (kEnableValidation)
+        if (ankh::config().validation)
         {
             ci.enabledLayerCount = 1;
             ci.ppEnabledLayerNames = layers;

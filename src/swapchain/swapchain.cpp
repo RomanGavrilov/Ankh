@@ -6,15 +6,19 @@
 #include "memory/image.hpp"
 #include "renderpass/frame-buffer.hpp"
 
+#include "utils/config.hpp"
+#include "utils/logging.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <stdexcept>
-#include <utils/logging.hpp>
 
 namespace ankh
 {
 
-    Swapchain::Swapchain(const PhysicalDevice &physicalDevice, VkDevice device, VkSurfaceKHR surface, GLFWwindow *window)
+    Swapchain::Swapchain(const PhysicalDevice &physicalDevice,
+                         VkDevice device,
+                         VkSurfaceKHR surface,
+                         GLFWwindow *window)
         : m_device(device)
     {
         create_swapchain(physicalDevice, surface, window);
@@ -42,7 +46,10 @@ namespace ankh
         }
     }
 
-    Swapchain::Swapchain(Swapchain &&other) noexcept { *this = std::move(other); }
+    Swapchain::Swapchain(Swapchain &&other) noexcept
+    {
+        *this = std::move(other);
+    }
 
     Swapchain &Swapchain::operator=(Swapchain &&other) noexcept
     {
@@ -70,7 +77,9 @@ namespace ankh
         return *this;
     }
 
-    void Swapchain::create_swapchain(const PhysicalDevice &physicalDevice, VkSurfaceKHR surface, GLFWwindow *window)
+    void Swapchain::create_swapchain(const PhysicalDevice &physicalDevice,
+                                     VkSurfaceKHR surface,
+                                     GLFWwindow *window)
     {
         VkPhysicalDevice phys = physicalDevice.handle();
 
@@ -81,7 +90,8 @@ namespace ankh
         VkExtent2D extent = choose_extent(support.capabilities, window);
 
         uint32_t imageCount = support.capabilities.minImageCount + 1;
-        if (support.capabilities.maxImageCount > 0 && imageCount > support.capabilities.maxImageCount)
+        if (support.capabilities.maxImageCount > 0 &&
+            imageCount > support.capabilities.maxImageCount)
         {
             imageCount = support.capabilities.maxImageCount;
         }
@@ -97,7 +107,8 @@ namespace ankh
         ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
         QueueFamilyIndices indices = physicalDevice.queues();
-        uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+        uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(),
+                                         indices.presentFamily.value()};
 
         if (indices.graphicsFamily != indices.presentFamily)
         {
@@ -178,7 +189,10 @@ namespace ankh
         return VK_FORMAT_D32_SFLOAT;
     }
 
-    VkImageView Swapchain::depth_view() const { return m_depth_image ? m_depth_image->view() : VK_NULL_HANDLE; }
+    VkImageView Swapchain::depth_view() const
+    {
+        return m_depth_image ? m_depth_image->view() : VK_NULL_HANDLE;
+    }
 
     void Swapchain::create_framebuffers(VkRenderPass renderPass)
     {
@@ -204,7 +218,8 @@ namespace ankh
 
     // ==== helpers ====
 
-    Swapchain::SwapChainSupportDetails Swapchain::query_swapchain_support(VkPhysicalDevice phys, VkSurfaceKHR surface) const
+    Swapchain::SwapChainSupportDetails
+    Swapchain::query_swapchain_support(VkPhysicalDevice phys, VkSurfaceKHR surface) const
     {
         SwapChainSupportDetails details{};
 
@@ -215,7 +230,10 @@ namespace ankh
         if (formatCount != 0)
         {
             details.formats.resize(formatCount);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(phys, surface, &formatCount, details.formats.data());
+            vkGetPhysicalDeviceSurfaceFormatsKHR(phys,
+                                                 surface,
+                                                 &formatCount,
+                                                 details.formats.data());
         }
 
         uint32_t presentModeCount = 0;
@@ -223,17 +241,22 @@ namespace ankh
         if (presentModeCount != 0)
         {
             details.presentModes.resize(presentModeCount);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(phys, surface, &presentModeCount, details.presentModes.data());
+            vkGetPhysicalDeviceSurfacePresentModesKHR(phys,
+                                                      surface,
+                                                      &presentModeCount,
+                                                      details.presentModes.data());
         }
 
         return details;
     }
 
-    VkSurfaceFormatKHR Swapchain::choose_surface_format(const std::vector<VkSurfaceFormatKHR> &available) const
+    VkSurfaceFormatKHR
+    Swapchain::choose_surface_format(const std::vector<VkSurfaceFormatKHR> &available) const
     {
         for (const auto &f : available)
         {
-            if (f.format == VK_FORMAT_B8G8R8A8_SRGB && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            if (f.format == VK_FORMAT_B8G8R8A8_SRGB &&
+                f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             {
                 return f;
             }
@@ -242,20 +265,55 @@ namespace ankh
         return available[0];
     }
 
-    VkPresentModeKHR Swapchain::choose_present_mode(const std::vector<VkPresentModeKHR> &available) const
+    VkPresentModeKHR
+    Swapchain::choose_present_mode(const std::vector<VkPresentModeKHR> &available) const
     {
-        for (const auto &m : available)
-        {
-            if (m == VK_PRESENT_MODE_MAILBOX_KHR)
-            {
-                return m;
-            }
-        }
 
-        return VK_PRESENT_MODE_FIFO_KHR;
+        if (ankh::config().vsync)
+        {
+            // FIFO is guaranteed to be available and is the vsync mode.
+            for (auto mode : available)
+            {
+                if (mode == VK_PRESENT_MODE_FIFO_KHR)
+                {
+                    ANKH_LOG_DEBUG("[Swapchain] Using VK_PRESENT_MODE_FIFO_KHR (vsync ON)");
+                    return VK_PRESENT_MODE_FIFO_KHR;
+                }
+            }
+
+            ANKH_LOG_WARN(
+                "[Swapchain] FIFO not found in available present modes, using first available");
+
+            return available.empty() ? VK_PRESENT_MODE_FIFO_KHR : available[0];
+        }
+        else
+        {
+            // find a low-latency mode
+            for (auto mode : available)
+            {
+                if (mode == VK_PRESENT_MODE_MAILBOX_KHR)
+                {
+                    ANKH_LOG_DEBUG("[Swapchain] Using VK_PRESENT_MODE_MAILBOX_KHR (vsync OFF)");
+                    return mode;
+                }
+            }
+
+            for (auto mode : available)
+            {
+                if (mode == VK_PRESENT_MODE_IMMEDIATE_KHR)
+                {
+                    ANKH_LOG_DEBUG("[Swapchain] Using VK_PRESENT_MODE_IMMEDIATE_KHR (vsync OFF)");
+                    return mode;
+                }
+            }
+
+            ANKH_LOG_DEBUG("[Swapchain] No MAILBOX/IMMEDIATE present mode, falling back to FIFO");
+            return VK_PRESENT_MODE_FIFO_KHR;
+        }
     }
 
-    VkExtent2D Swapchain::choose_extent(const VkSurfaceCapabilitiesKHR &caps, GLFWwindow *window) const
+    VkExtent2D Swapchain::choose_extent(const VkSurfaceCapabilitiesKHR &caps,
+                                        GLFWwindow *window) const
     {
         if (caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
         {
@@ -270,8 +328,10 @@ namespace ankh
             actual.width = static_cast<uint32_t>(width);
             actual.height = static_cast<uint32_t>(height);
 
-            actual.width = std::clamp(actual.width, caps.minImageExtent.width, caps.maxImageExtent.width);
-            actual.height = std::clamp(actual.height, caps.minImageExtent.height, caps.maxImageExtent.height);
+            actual.width =
+                std::clamp(actual.width, caps.minImageExtent.width, caps.maxImageExtent.width);
+            actual.height =
+                std::clamp(actual.height, caps.minImageExtent.height, caps.maxImageExtent.height);
 
             return actual;
         }

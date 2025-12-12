@@ -1,11 +1,12 @@
 // src/core/context.cpp
 #include "core/context.hpp"
 
-#include "core/instance.hpp"
 #include "core/debug-messenger.hpp"
-#include "core/physical-device.hpp"
 #include "core/device.hpp"
+#include "core/instance.hpp"
+#include "core/physical-device.hpp"
 #include "platform/surface.hpp"
+#include "utils/config.hpp"
 
 #include <stdexcept>
 
@@ -15,13 +16,16 @@ namespace ankh
     Context::Context(GLFWwindow *window)
     {
         m_instance = std::make_unique<Instance>();
-        m_debug_messenger = std::make_unique<DebugMessenger>(m_instance->handle());
+
+        if (ankh::config().validation)
+        {
+            m_debug_messenger = std::make_unique<DebugMessenger>(m_instance->handle());
+        }
 
         m_surface = std::make_unique<Surface>(m_instance->handle(), window);
 
-        m_physical_device = std::make_unique<PhysicalDevice>(
-            m_instance->handle(),
-            m_surface->handle());
+        m_physical_device =
+            std::make_unique<PhysicalDevice>(m_instance->handle(), m_surface->handle());
 
         m_device = std::make_unique<Device>(*m_physical_device);
     }

@@ -17,16 +17,6 @@
 namespace ankh
 {
 
-    inline constexpr uint32_t kWidth = 800;
-    inline constexpr uint32_t kHeight = 600;
-    inline constexpr int kMaxFramesInFlight = 2;
-
-#ifndef NDEBUG
-    inline constexpr bool kEnableValidation = true;
-#else
-    inline constexpr bool kEnableValidation = false;
-#endif
-
     struct QueueFamilyIndices
     {
         std::optional<uint32_t> graphicsFamily;
