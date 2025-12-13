@@ -39,6 +39,9 @@ namespace ankh
         // Make sure everything using the device is already destroyed
         // Renderer should call vkDeviceWaitIdle before this.
 
+        // Allocator must be destroyed before Device because it holds VkDeviceMemory objects
+        m_allocator.reset();
+
         m_device.reset();
 
         m_physical_device.reset();

@@ -81,8 +81,8 @@ namespace ankh
         std::unique_ptr<DebugMessenger> m_debug_messenger;
         std::unique_ptr<Surface> m_surface;
         std::unique_ptr<PhysicalDevice> m_physical_device;
-        std::unique_ptr<Device> m_device;
         std::unique_ptr<Allocator> m_allocator;
+        std::unique_ptr<Device> m_device;
     };
 
 } // namespace ankh
