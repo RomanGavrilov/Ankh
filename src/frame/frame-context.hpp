@@ -3,6 +3,7 @@
 
 #include "utils/types.hpp"
 #include <memory>
+#include <vk_mem_alloc.h>
 
 namespace ankh
 {
@@ -16,7 +17,7 @@ namespace ankh
       public:
         FrameContext() = default;
 
-        FrameContext(VkPhysicalDevice physicalDevice,
+        FrameContext(VmaAllocator allocator,
                      VkDevice device,
                      uint32_t graphicsQueueFamilyIndex,
                      VkDeviceSize uniformBufferSize,

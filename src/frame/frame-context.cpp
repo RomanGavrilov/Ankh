@@ -12,7 +12,7 @@
 namespace ankh
 {
 
-    FrameContext::FrameContext(VkPhysicalDevice physicalDevice,
+    FrameContext::FrameContext(VmaAllocator allocator,
                                VkDevice device,
                                uint32_t graphicsQueueFamilyIndex,
                                VkDeviceSize uniformBufferSize,
@@ -29,24 +29,22 @@ namespace ankh
         m_cmd = std::make_unique<CommandBuffer>(m_device, m_pool->handle());
 
         // Uniform buffer (FrameUBO)
-        m_uniform_buffer = std::make_unique<Buffer>(physicalDevice,
-                                                    m_device,
+        m_uniform_buffer = std::make_unique<Buffer>(allocator,
+                                                    device,
                                                     uniformBufferSize,
                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        m_uniform_mapped = m_uniform_buffer->map(0, uniformBufferSize);
+        m_uniform_mapped = m_uniform_buffer->map();
 
         // Object buffer (ObjectDataGPU array)
-        m_object_buffer = std::make_unique<Buffer>(physicalDevice,
+        m_object_buffer = std::make_unique<Buffer>(allocator,
                                                    m_device,
                                                    objectBufferSize,
                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                                       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        m_object_mapped = m_object_buffer->map(0, objectBufferSize);
+        m_object_mapped = m_object_buffer->map();
 
         // How many ObjectDataGPU elements fit in the object buffer?
         m_object_capacity = static_cast<uint32_t>(objectBufferSize / sizeof(ObjectDataGPU));
@@ -74,11 +72,8 @@ namespace ankh
         VkSemaphoreCreateInfo semInfo{};
         semInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-        if (vkCreateSemaphore(m_device, &semInfo, nullptr, &m_image_available) != VK_SUCCESS ||
-            vkCreateSemaphore(m_device, &semInfo, nullptr, &m_render_finished) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create frame semaphores");
-        }
+        ANKH_VK_CHECK(vkCreateSemaphore(m_device, &semInfo, nullptr, &m_image_available));
+        ANKH_VK_CHECK(vkCreateSemaphore(m_device, &semInfo, nullptr, &m_render_finished));
 
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -123,9 +118,6 @@ namespace ankh
             vkDestroyFence(m_device, m_in_flight, nullptr);
             m_in_flight = VK_NULL_HANDLE;
         }
-
-        // unique_ptrs will clean up their own Vulkan resources:
-        // CommandPool, CommandBuffer, Buffer
     }
 
     FrameContext::FrameContext(FrameContext &&other) noexcept

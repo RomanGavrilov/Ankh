@@ -1,14 +1,14 @@
 // src/core/context.hpp
 #pragma once
 
-#include <memory>
-#include "utils/types.hpp"
-#include "core/instance.hpp"
 #include "core/debug-messenger.hpp"
-#include "core/physical-device.hpp"
 #include "core/device.hpp"
+#include "core/instance.hpp"
+#include "core/physical-device.hpp"
+#include "memory/allocator.hpp"
 #include "platform/surface.hpp"
-
+#include "utils/types.hpp"
+#include <memory>
 
 namespace ankh
 {
@@ -21,7 +21,7 @@ namespace ankh
 
     class Context
     {
-    public:
+      public:
         // window is only needed to create the VkSurface
         explicit Context(GLFWwindow *window);
         ~Context();
@@ -31,11 +31,40 @@ namespace ankh
         Context(Context &&) = delete;
         Context &operator=(Context &&) = delete;
 
-        Instance &instance() { return *m_instance; }
-        DebugMessenger *debug() { return m_debug_messenger.get(); }
-        PhysicalDevice &physical_device() { return *m_physical_device; }
-        Device &device() { return *m_device; }
-        Surface &surface() { return *m_surface; }
+        Instance &instance()
+        {
+            return *m_instance;
+        }
+
+        DebugMessenger *debug()
+        {
+            return m_debug_messenger.get();
+        }
+
+        PhysicalDevice &physical_device()
+        {
+            return *m_physical_device;
+        }
+
+        Device &device()
+        {
+            return *m_device;
+        }
+
+        Surface &surface()
+        {
+            return *m_surface;
+        }
+
+        Allocator &allocator()
+        {
+            return *m_allocator;
+        }
+
+        const Allocator &allocator() const
+        {
+            return *m_allocator;
+        }
 
         // Convenience raw handles / info
         VkInstance instance_handle() const;
@@ -47,12 +76,13 @@ namespace ankh
 
         QueueFamilyIndices queues() const;
 
-    private:
+      private:
         std::unique_ptr<Instance> m_instance;
         std::unique_ptr<DebugMessenger> m_debug_messenger;
         std::unique_ptr<Surface> m_surface;
         std::unique_ptr<PhysicalDevice> m_physical_device;
         std::unique_ptr<Device> m_device;
+        std::unique_ptr<Allocator> m_allocator;
     };
 
 } // namespace ankh

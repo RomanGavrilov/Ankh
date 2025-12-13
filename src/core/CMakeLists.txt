@@ -12,6 +12,7 @@ target_link_libraries(ankh_core
     PUBLIC
         ankh_utils
         ankh_platform
+        ankh_memory
         Vulkan::Vulkan
 )
 

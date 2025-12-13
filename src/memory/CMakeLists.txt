@@ -1,4 +1,5 @@
 add_library(ankh_memory STATIC
+    allocator.cpp
     buffer.cpp
     upload-context.cpp
     image.cpp

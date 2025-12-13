@@ -17,9 +17,11 @@ namespace ankh
 
     Swapchain::Swapchain(const PhysicalDevice &physicalDevice,
                          VkDevice device,
+                         VmaAllocator allocator,
                          VkSurfaceKHR surface,
                          GLFWwindow *window)
         : m_device(device)
+        , m_allocator(allocator)
     {
         create_swapchain(physicalDevice, surface, window);
         create_image_views();
@@ -54,25 +56,35 @@ namespace ankh
     Swapchain &Swapchain::operator=(Swapchain &&other) noexcept
     {
         if (this == &other)
-        {
             return *this;
-        }
 
         this->~Swapchain();
 
         m_device = other.m_device;
+        m_allocator = other.m_allocator;
+
         m_swapchain = other.m_swapchain;
         m_image_format = other.m_image_format;
         m_extent = other.m_extent;
+
         m_images = std::move(other.m_images);
         m_image_views = std::move(other.m_image_views);
+
+        m_depth_image = std::move(other.m_depth_image);
+        m_depth_format = other.m_depth_format;
+
         m_framebuffers = std::move(other.m_framebuffers);
 
         other.m_device = VK_NULL_HANDLE;
+        other.m_allocator = VK_NULL_HANDLE;
         other.m_swapchain = VK_NULL_HANDLE;
-        other.m_image_views.clear();
+        other.m_image_format = {};
+        other.m_extent = {};
+        other.m_depth_format = {};
         other.m_images.clear();
+        other.m_image_views.clear();
         other.m_framebuffers.clear();
+        other.m_depth_image.reset();
 
         return *this;
     }
@@ -172,13 +184,13 @@ namespace ankh
     {
         m_depth_format = find_depth_format(physicalDevice);
 
-        m_depth_image = std::make_unique<Image>(physicalDevice.handle(),
+        m_depth_image = std::make_unique<Image>(m_allocator,
                                                 m_device,
                                                 m_extent.width,
                                                 m_extent.height,
                                                 m_depth_format,
                                                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                                VMA_MEMORY_USAGE_GPU_ONLY,
                                                 VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 

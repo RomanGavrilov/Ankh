@@ -1,21 +1,21 @@
-// src/memory/buffer.hpp
 #pragma once
 
 #include "utils/types.hpp"
+#include <vk_mem_alloc.h>
 
 namespace ankh
 {
-
     class Buffer
     {
-    public:
+      public:
         Buffer() = delete;
 
-        Buffer(VkPhysicalDevice phys,
+        Buffer(VmaAllocator allocator,
                VkDevice device,
                VkDeviceSize size,
                VkBufferUsageFlags usage,
-               VkMemoryPropertyFlags properties);
+               VmaMemoryUsage memoryUsage,
+               VmaAllocationCreateFlags allocFlags = 0);
 
         ~Buffer();
 
@@ -25,21 +25,31 @@ namespace ankh
         Buffer(Buffer &&other) noexcept;
         Buffer &operator=(Buffer &&other) noexcept;
 
-        VkBuffer handle() const { return m_buffer; }
-        VkDeviceMemory memory() const { return m_memory; }
-        VkDevice device() const { return m_device; }
-        VkDeviceSize size() const { return m_size; }
+        VkBuffer handle() const
+        {
+            return m_buffer;
+        }
+        VkDevice device() const
+        {
+            return m_device;
+        }
+        VkDeviceSize size() const
+        {
+            return m_size;
+        }
 
-        void *map(VkDeviceSize offset, VkDeviceSize size);
+        void *map();
         void unmap();
 
-    private:
+      private:
         void destroy();
 
         VkDevice m_device{VK_NULL_HANDLE};
+        VmaAllocator m_allocator{VK_NULL_HANDLE};
         VkBuffer m_buffer{VK_NULL_HANDLE};
-        VkDeviceMemory m_memory{VK_NULL_HANDLE};
-        VkDeviceSize m_size{0};
-    };
+        VmaAllocation m_allocation{VK_NULL_HANDLE};
 
+        VkDeviceSize m_size{0};
+        void *m_mapped{nullptr};
+    };
 } // namespace ankh

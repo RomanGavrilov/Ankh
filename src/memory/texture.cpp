@@ -1,26 +1,24 @@
 // src/memory/texture.cpp
-#include "texture.hpp"
+#include "memory/texture.hpp"
 
+#include "utils/logging.hpp"
 #include <stdexcept>
-#include <utils/logging.hpp>
 
 namespace ankh
 {
-
-    Texture::Texture(VkPhysicalDevice physicalDevice,
+    Texture::Texture(VmaAllocator allocator,
                      VkDevice device,
                      uint32_t width,
                      uint32_t height,
                      VkFormat format,
                      VkImageUsageFlags usage,
-                     VkMemoryPropertyFlags memoryProperties,
+                     VmaMemoryUsage memoryUsage,
                      VkImageAspectFlags aspectMask,
                      VkFilter filter,
                      VkSamplerAddressMode addressMode)
         : m_device(device)
-        , m_image(physicalDevice, device, width, height, format, usage, memoryProperties, aspectMask)
+        , m_image(allocator, device, width, height, format, usage, memoryUsage, aspectMask)
     {
-        // Create sampler
         VkSamplerCreateInfo samplerInfo{};
         samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
         samplerInfo.magFilter = filter;
@@ -32,10 +30,13 @@ namespace ankh
 
         samplerInfo.anisotropyEnable = VK_FALSE;
         samplerInfo.maxAnisotropy = 1.0f;
+
         samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
         samplerInfo.unnormalizedCoordinates = VK_FALSE;
+
         samplerInfo.compareEnable = VK_FALSE;
         samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+
         samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
         samplerInfo.mipLodBias = 0.0f;
         samplerInfo.minLod = 0.0f;
@@ -44,7 +45,10 @@ namespace ankh
         ANKH_VK_CHECK(vkCreateSampler(m_device, &samplerInfo, nullptr, &m_sampler));
     }
 
-    Texture::~Texture() { destroy(); }
+    Texture::~Texture()
+    {
+        destroy();
+    }
 
     void Texture::destroy()
     {
@@ -57,8 +61,7 @@ namespace ankh
             m_sampler = VK_NULL_HANDLE;
         }
 
-        // m_image will destroy its own VkImage, VkImageView, and VkDeviceMemory
-        // via its destructor.
+        // m_image destroys itself (vmaDestroyImage + view)
         m_device = VK_NULL_HANDLE;
     }
 
@@ -84,7 +87,6 @@ namespace ankh
 
         other.m_device = VK_NULL_HANDLE;
         other.m_sampler = VK_NULL_HANDLE;
-
         return *this;
     }
 

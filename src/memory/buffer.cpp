@@ -1,60 +1,29 @@
-// src/memory/buffer.cpp
 #include "memory/buffer.hpp"
-
+#include "utils/logging.hpp"
 #include <stdexcept>
 
 namespace ankh
 {
-
-    static uint32_t find_memory_type(VkPhysicalDevice phys,
-                                     uint32_t typeFilter,
-                                     VkMemoryPropertyFlags properties)
-    {
-        VkPhysicalDeviceMemoryProperties memProps{};
-        vkGetPhysicalDeviceMemoryProperties(phys, &memProps);
-
-        for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i)
-        {
-            if ((typeFilter & (1u << i)) &&
-                (memProps.memoryTypes[i].propertyFlags & properties) == properties)
-            {
-                return i;
-            }
-        }
-
-        throw std::runtime_error("failed to find suitable memory type");
-    }
-
-    Buffer::Buffer(VkPhysicalDevice phys,
+    Buffer::Buffer(VmaAllocator allocator,
                    VkDevice device,
                    VkDeviceSize size,
                    VkBufferUsageFlags usage,
-                   VkMemoryPropertyFlags properties)
-        : m_device(device), m_size(size)
+                   VmaMemoryUsage memoryUsage,
+                   VmaAllocationCreateFlags allocFlags)
+        : m_allocator(allocator)
+        , m_device(device)
+        , m_size(size)
     {
         VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
         bi.size = size;
         bi.usage = usage;
         bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        if (vkCreateBuffer(m_device, &bi, nullptr, &m_buffer) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create buffer");
-        }
+        VmaAllocationCreateInfo ai{};
+        ai.usage = memoryUsage;
+        ai.flags = allocFlags;
 
-        VkMemoryRequirements req{};
-        vkGetBufferMemoryRequirements(m_device, m_buffer, &req);
-
-        VkMemoryAllocateInfo ai{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
-        ai.allocationSize = req.size;
-        ai.memoryTypeIndex = find_memory_type(phys, req.memoryTypeBits, properties);
-
-        if (vkAllocateMemory(m_device, &ai, nullptr, &m_memory) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to allocate buffer memory");
-        }
-
-        vkBindBufferMemory(m_device, m_buffer, m_memory, 0);
+        ANKH_VK_CHECK(vmaCreateBuffer(m_allocator, &bi, &ai, &m_buffer, &m_allocation, nullptr));
     }
 
     Buffer::~Buffer()
@@ -70,53 +39,69 @@ namespace ankh
     Buffer &Buffer::operator=(Buffer &&other) noexcept
     {
         if (this == &other)
+        {
             return *this;
+        }
 
         destroy();
 
+        m_allocator = other.m_allocator;
         m_device = other.m_device;
         m_buffer = other.m_buffer;
-        m_memory = other.m_memory;
+        m_allocation = other.m_allocation;
         m_size = other.m_size;
+        m_mapped = other.m_mapped;
 
+        other.m_allocator = VK_NULL_HANDLE;
         other.m_device = VK_NULL_HANDLE;
         other.m_buffer = VK_NULL_HANDLE;
-        other.m_memory = VK_NULL_HANDLE;
+        other.m_allocation = VK_NULL_HANDLE;
         other.m_size = 0;
+        other.m_mapped = nullptr;
 
         return *this;
     }
 
-    void *Buffer::map(VkDeviceSize offset, VkDeviceSize size)
+    void Buffer::destroy()
     {
-        void *data = nullptr;
-        if (vkMapMemory(m_device, m_memory, offset, size, 0, &data) != VK_SUCCESS)
+        if (m_mapped && m_allocator && m_allocation)
         {
-            throw std::runtime_error("failed to map buffer memory");
+            vmaUnmapMemory(m_allocator, m_allocation);
+            m_mapped = nullptr;
         }
-        return data;
+
+        if (m_allocator && m_buffer && m_allocation)
+        {
+            vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
+            m_buffer = VK_NULL_HANDLE;
+            m_allocation = VK_NULL_HANDLE;
+        }
+    }
+
+    void *Buffer::map()
+    {
+        if (m_mapped)
+        {
+            return m_mapped;
+        }
+
+        void *ptr = nullptr;
+
+        ANKH_VK_CHECK(vmaMapMemory(m_allocator, m_allocation, &ptr));
+
+        m_mapped = ptr;
+        return m_mapped;
     }
 
     void Buffer::unmap()
     {
-        if (m_memory)
+        if (!m_mapped)
         {
-            vkUnmapMemory(m_device, m_memory);
+            return;
         }
-    }
 
-    void Buffer::destroy()
-    {
-        if (m_buffer)
-        {
-            vkDestroyBuffer(m_device, m_buffer, nullptr);
-            m_buffer = VK_NULL_HANDLE;
-        }
-        if (m_memory)
-        {
-            vkFreeMemory(m_device, m_memory, nullptr);
-            m_memory = VK_NULL_HANDLE;
-        }
-    }
+        vmaUnmapMemory(m_allocator, m_allocation);
 
+        m_mapped = nullptr;
+    }
 } // namespace ankh

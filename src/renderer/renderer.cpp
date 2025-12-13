@@ -84,6 +84,7 @@ namespace ankh
 
         m_swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
                                                   m_context->device_handle(),
+                                                  m_context->allocator().handle(),
                                                   m_context->surface_handle(),
                                                   m_window->handle());
 
@@ -154,7 +155,7 @@ namespace ankh
             }
         }
 
-        m_gpu_mesh_pool = std::make_unique<GpuMeshPool>(m_context->physical_device().handle(),
+        m_gpu_mesh_pool = std::make_unique<GpuMeshPool>(m_context->allocator().handle(),
                                                         m_context->device_handle(),
                                                         *m_upload_context);
 
@@ -277,27 +278,26 @@ namespace ankh
         const VkDeviceSize imageSize = static_cast<VkDeviceSize>(pixels.size());
 
         // Staging buffer
-        Buffer staging(m_context->physical_device().handle(),
+        Buffer staging(m_context->allocator().handle(),
                        m_context->device_handle(),
                        imageSize,
                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
+                       VMA_MEMORY_USAGE_CPU_ONLY);
         {
-            void *data = staging.map(0, imageSize);
+            void *data = staging.map();
             std::memcpy(data, pixels.data(), static_cast<size_t>(imageSize));
             staging.unmap();
         }
 
         // Device-local texture
         m_texture =
-            std::make_unique<Texture>(m_context->physical_device().handle(),
+            std::make_unique<Texture>(m_context->allocator().handle(),
                                       m_context->device_handle(),
                                       texWidth,
                                       texHeight,
                                       VK_FORMAT_R8G8B8A8_UNORM,
                                       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                      VMA_MEMORY_USAGE_GPU_ONLY,
                                       VK_IMAGE_ASPECT_COLOR_BIT);
 
         // Upload via UploadContext
@@ -348,7 +348,7 @@ namespace ankh
 
         for (uint32_t i = 0; i < ankh::config().framesInFlight; ++i)
         {
-            m_frames.emplace_back(m_context->physical_device().handle(),
+            m_frames.emplace_back(m_context->allocator().handle(),
                                   m_context->device_handle(),
                                   graphicsFamily,
                                   uboSize,
@@ -563,6 +563,7 @@ namespace ankh
 
         m_swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
                                                   m_context->device_handle(),
+                                                  m_context->allocator().handle(),
                                                   m_context->surface_handle(),
                                                   m_window->handle());
 

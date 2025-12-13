@@ -7,8 +7,8 @@
 namespace ankh
 {
 
-    GpuMeshPool::GpuMeshPool(VkPhysicalDevice phys, VkDevice device, UploadContext &uploadContext)
-        : m_phys(phys)
+    GpuMeshPool::GpuMeshPool(VmaAllocator allocator, VkDevice device, UploadContext &uploadContext)
+        : m_allocator(allocator)
         , m_device(device)
         , m_upload_context(uploadContext)
     {
@@ -55,51 +55,54 @@ namespace ankh
         VkDeviceSize indexBufferSize = sizeof(uint16_t) * allIndices.size();
 
         // --- Vertex staging + device-local buffer ---
-        Buffer vertexStaging(m_phys,
+        // -----------------------------
+        // Vertex upload (staging -> GPU)
+        // -----------------------------
+        Buffer vertexStaging(m_allocator,
                              m_device,
                              vertexBufferSize,
                              VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                             VMA_MEMORY_USAGE_CPU_ONLY);
 
         {
-            void *data = vertexStaging.map(0, vertexBufferSize);
-            std::memcpy(data, allVertices.data(), static_cast<size_t>(vertexBufferSize));
+            void *dst = vertexStaging.map();
+            std::memcpy(dst, allVertices.data(), static_cast<size_t>(vertexBufferSize));
             vertexStaging.unmap();
         }
 
-        m_vertex_buffer = std::make_unique<Buffer>(m_phys,
+        m_vertex_buffer = std::make_unique<Buffer>(m_allocator,
                                                    m_device,
                                                    vertexBufferSize,
                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                                   VMA_MEMORY_USAGE_GPU_ONLY);
 
         m_upload_context.copy_buffer(graphicsQueue,
                                      vertexStaging.handle(),
                                      m_vertex_buffer->handle(),
                                      vertexBufferSize);
 
-        // --- Index staging + device-local buffer ---
-        Buffer indexStaging(m_phys,
+        // -----------------------------
+        // Index upload (staging -> GPU)
+        // -----------------------------
+        Buffer indexStaging(m_allocator,
                             m_device,
                             indexBufferSize,
                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                            VMA_MEMORY_USAGE_CPU_ONLY);
 
         {
-            void *data = indexStaging.map(0, indexBufferSize);
-            std::memcpy(data, allIndices.data(), static_cast<size_t>(indexBufferSize));
+            void *dst = indexStaging.map();
+            std::memcpy(dst, allIndices.data(), static_cast<size_t>(indexBufferSize));
             indexStaging.unmap();
         }
 
-        m_index_buffer = std::make_unique<Buffer>(m_phys,
+        m_index_buffer = std::make_unique<Buffer>(m_allocator,
                                                   m_device,
                                                   indexBufferSize,
                                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                                                       VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                                  VMA_MEMORY_USAGE_GPU_ONLY);
 
         m_upload_context.copy_buffer(graphicsQueue,
                                      indexStaging.handle(),

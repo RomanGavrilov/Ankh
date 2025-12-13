@@ -28,6 +28,10 @@ namespace ankh
             std::make_unique<PhysicalDevice>(m_instance->handle(), m_surface->handle());
 
         m_device = std::make_unique<Device>(*m_physical_device);
+
+        m_allocator = std::make_unique<Allocator>(m_instance->handle(),
+                                                  m_physical_device->handle(),
+                                                  m_device->handle());
     }
 
     Context::~Context()

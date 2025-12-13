@@ -1,101 +1,73 @@
 // src/memory/image.cpp
 #include "memory/image.hpp"
+#include "utils/logging.hpp"
 
 #include <stdexcept>
 
 namespace ankh
 {
-    namespace
-    {
-        uint32_t find_memory_type(VkPhysicalDevice phys, uint32_t typeFilter, VkMemoryPropertyFlags properties)
-        {
-            VkPhysicalDeviceMemoryProperties memProps{};
-            vkGetPhysicalDeviceMemoryProperties(phys, &memProps);
-
-            for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i)
-            {
-                if ((typeFilter & (1u << i)) && (memProps.memoryTypes[i].propertyFlags & properties) == properties)
-                {
-                    return i;
-                }
-            }
-
-            throw std::runtime_error("failed to find suitable image memory type");
-        }
-    } // namespace
-
-    Image::Image(VkPhysicalDevice physicalDevice,
+    Image::Image(VmaAllocator allocator,
                  VkDevice device,
                  uint32_t width,
                  uint32_t height,
                  VkFormat format,
                  VkImageUsageFlags usage,
-                 VkMemoryPropertyFlags memoryProperties,
+                 VmaMemoryUsage memoryUsage,
                  VkImageAspectFlags aspectMask)
-        : m_device(device)
+        : m_allocator(allocator)
+        , m_device(device)
         , m_format(format)
         , m_width(width)
         , m_height(height)
     {
-        // Create VkImage
-        VkImageCreateInfo imageInfo{};
-        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageInfo.imageType = VK_IMAGE_TYPE_2D;
-        imageInfo.extent.width = width;
-        imageInfo.extent.height = height;
-        imageInfo.extent.depth = 1;
-        imageInfo.mipLevels = 1;
-        imageInfo.arrayLayers = 1;
-        imageInfo.format = format;
-        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageInfo.usage = usage;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-        if (vkCreateImage(m_device, &imageInfo, nullptr, &m_image) != VK_SUCCESS)
+        if (!m_allocator || m_device == VK_NULL_HANDLE)
         {
-            throw std::runtime_error("failed to create image");
+            throw std::runtime_error("Image: invalid allocator/device");
         }
 
-        // Allocate memory
-        VkMemoryRequirements memReq{};
-        vkGetImageMemoryRequirements(m_device, m_image, &memReq);
+        VkImageCreateInfo ci{};
+        ci.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        ci.imageType = VK_IMAGE_TYPE_2D;
+        ci.extent.width = width;
+        ci.extent.height = height;
+        ci.extent.depth = 1;
+        ci.mipLevels = 1;
+        ci.arrayLayers = 1;
+        ci.format = format;
+        ci.tiling = VK_IMAGE_TILING_OPTIMAL;
+        ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        ci.usage = usage;
+        ci.samples = VK_SAMPLE_COUNT_1_BIT;
+        ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memReq.size;
-        allocInfo.memoryTypeIndex = find_memory_type(physicalDevice, memReq.memoryTypeBits, memoryProperties);
+        VmaAllocationCreateInfo ai{};
+        ai.usage = memoryUsage;
 
-        if (vkAllocateMemory(m_device, &allocInfo, nullptr, &m_memory) != VK_SUCCESS)
+        VkResult res = vmaCreateImage(m_allocator, &ci, &ai, &m_image, &m_allocation, nullptr);
+        if (res != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to allocate image memory");
+            ANKH_LOG_ERROR("[Image] vmaCreateImage failed");
+            throw std::runtime_error("vmaCreateImage failed");
         }
 
-        if (vkBindImageMemory(m_device, m_image, m_memory, 0) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to bind image memory");
-        }
+        VkImageViewCreateInfo vi{};
+        vi.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        vi.image = m_image;
+        vi.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        vi.format = format;
+        vi.subresourceRange.aspectMask = aspectMask;
+        vi.subresourceRange.baseMipLevel = 0;
+        vi.subresourceRange.levelCount = 1;
+        vi.subresourceRange.baseArrayLayer = 0;
+        vi.subresourceRange.layerCount = 1;
 
-        // Create image view
-        VkImageViewCreateInfo viewInfo{};
-        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = m_image;
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = m_format;
-        viewInfo.subresourceRange.aspectMask = aspectMask;
-        viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
-        viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
-
-        if (vkCreateImageView(m_device, &viewInfo, nullptr, &m_view) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create image view");
-        }
+        ANKH_VK_CHECK(vkCreateImageView(m_device, &vi, nullptr, &m_view));
     }
 
-    Image::~Image() { destroy(); }
+    Image::~Image()
+    {
+        destroy();
+    }
 
     void Image::destroy()
     {
@@ -108,59 +80,47 @@ namespace ankh
             m_view = VK_NULL_HANDLE;
         }
 
-        if (m_image != VK_NULL_HANDLE)
+        if (m_allocator && m_image != VK_NULL_HANDLE && m_allocation != VK_NULL_HANDLE)
         {
-            vkDestroyImage(m_device, m_image, nullptr);
+            vmaDestroyImage(m_allocator, m_image, m_allocation);
             m_image = VK_NULL_HANDLE;
-        }
-
-        if (m_memory != VK_NULL_HANDLE)
-        {
-            vkFreeMemory(m_device, m_memory, nullptr);
-            m_memory = VK_NULL_HANDLE;
+            m_allocation = VK_NULL_HANDLE;
         }
 
         m_device = VK_NULL_HANDLE;
+        m_allocator = VK_NULL_HANDLE;
+        m_width = 0;
+        m_height = 0;
+        m_format = {};
     }
 
     Image::Image(Image &&other) noexcept
-        : m_device(other.m_device)
-        , m_image(other.m_image)
-        , m_memory(other.m_memory)
-        , m_view(other.m_view)
-        , m_format(other.m_format)
-        , m_width(other.m_width)
-        , m_height(other.m_height)
     {
-        other.m_device = VK_NULL_HANDLE;
-        other.m_image = VK_NULL_HANDLE;
-        other.m_memory = VK_NULL_HANDLE;
-        other.m_view = VK_NULL_HANDLE;
-        other.m_width = 0;
-        other.m_height = 0;
+        *this = std::move(other);
     }
 
     Image &Image::operator=(Image &&other) noexcept
     {
         if (this == &other)
-        {
             return *this;
-        }
 
         destroy();
 
+        m_allocator = other.m_allocator;
         m_device = other.m_device;
         m_image = other.m_image;
-        m_memory = other.m_memory;
+        m_allocation = other.m_allocation;
         m_view = other.m_view;
         m_format = other.m_format;
         m_width = other.m_width;
         m_height = other.m_height;
 
+        other.m_allocator = VK_NULL_HANDLE;
         other.m_device = VK_NULL_HANDLE;
         other.m_image = VK_NULL_HANDLE;
-        other.m_memory = VK_NULL_HANDLE;
+        other.m_allocation = VK_NULL_HANDLE;
         other.m_view = VK_NULL_HANDLE;
+        other.m_format = {};
         other.m_width = 0;
         other.m_height = 0;
 
