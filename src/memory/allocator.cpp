@@ -19,13 +19,13 @@ namespace ankh
     {
         if (m_allocator)
         {
-            char *stats = nullptr;
-            vmaBuildStatsString(m_allocator, &stats, VK_TRUE);
-            if (stats)
-            {
-                ANKH_LOG_ERROR(std::string("[Allocator] Stats:\n") + stats);
-                vmaFreeStatsString(m_allocator, stats);
-            }
+            // char *stats = nullptr;
+            // vmaBuildStatsString(m_allocator, &stats, VK_TRUE);
+            // if (stats)
+            // {
+            //     ANKH_LOG_ERROR(std::string("[Allocator] Stats:\n") + stats);
+            //     vmaFreeStatsString(m_allocator, stats);
+            // }
 
             vmaDestroyAllocator(m_allocator);
             m_allocator = VK_NULL_HANDLE;
