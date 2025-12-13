@@ -34,20 +34,6 @@ namespace ankh
                                                   m_device->handle());
     }
 
-    Context::~Context()
-    {
-        // Make sure everything using the device is already destroyed
-        // Renderer should call vkDeviceWaitIdle before this.
-        m_allocator.reset();
-        m_device.reset();
-
-        m_physical_device.reset();
-
-        m_surface.reset();
-        m_debug_messenger.reset();
-        m_instance.reset();
-    }
-
     VkInstance Context::instance_handle() const
     {
         return m_instance ? m_instance->handle() : VK_NULL_HANDLE;

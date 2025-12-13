@@ -24,7 +24,6 @@ namespace ankh
       public:
         // window is only needed to create the VkSurface
         explicit Context(GLFWwindow *window);
-        ~Context();
 
         Context(const Context &) = delete;
         Context &operator=(const Context &) = delete;
