@@ -35,6 +35,7 @@ namespace ankh
     class SceneRenderer;
     class GpuMeshPool;
     class Texture;
+    class DeferredDeletionQueue;
 
     class Renderer
     {
@@ -58,6 +59,7 @@ namespace ankh
         void draw_frame();
         void recreate_swapchain();
         void cleanup_swapchain();
+        void wait_for_all_frames();
 
       private:
         std::unique_ptr<Window> m_window;
@@ -78,6 +80,8 @@ namespace ankh
         std::unique_ptr<FrameSync> m_frame_sync;
 
         std::unique_ptr<GpuMeshPool> m_gpu_mesh_pool;
+
+        std::unique_ptr<DeferredDeletionQueue> m_deletion_queue;
     };
 
 } // namespace ankh

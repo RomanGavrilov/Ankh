@@ -29,6 +29,7 @@
 #include "pipeline/graphics-pipeline.hpp"
 #include "pipeline/pipeline-layout.hpp"
 
+#include "utils/deferred-deletion-queue.hpp"
 #include "utils/types.hpp"
 
 #include "memory/buffer.hpp"
@@ -76,6 +77,8 @@ namespace ankh
 
         // Context sets up instance, debug, surface, physical device, device
         m_context = std::make_unique<Context>(m_window->handle());
+
+        m_deletion_queue = std::make_unique<DeferredDeletionQueue>(ankh::config().framesInFlight);
 
         // Upload context: device + graphics queue family index
         m_upload_context =
@@ -189,6 +192,20 @@ namespace ankh
 
         m_render_pass.reset();
         m_swapchain.reset();
+    }
+
+    void Renderer::wait_for_all_frames()
+    {
+        VkDevice dev = m_context->device_handle();
+
+        for (auto &f : m_frames)
+        {
+            VkFence fence = f.in_flight_fence();
+            ANKH_VK_CHECK(vkWaitForFences(dev, 1, &fence, VK_TRUE, UINT64_MAX));
+        }
+
+        // Once all fences are complete, it is also legal to flush all deferred deletions:
+        m_deletion_queue->flush_all();
     }
 
     void Renderer::create_descriptor_pool()
@@ -481,10 +498,14 @@ namespace ankh
 
     void Renderer::draw_frame()
     {
-        auto &frame = m_frames[m_frame_sync->current()];
+        const uint32_t current_frame_index = m_frame_sync->current();
+
+        auto &frame = m_frames[current_frame_index];
 
         VkFence fence = frame.in_flight_fence();
-        vkWaitForFences(m_context->device_handle(), 1, &fence, VK_TRUE, UINT64_MAX);
+        ANKH_VK_CHECK(vkWaitForFences(m_context->device_handle(), 1, &fence, VK_TRUE, UINT64_MAX));
+
+        m_deletion_queue->flush(current_frame_index);
 
         uint32_t image_index = 0;
         VkResult result = vkAcquireNextImageKHR(m_context->device_handle(),
@@ -505,7 +526,8 @@ namespace ankh
         }
 
         update_uniform_buffer(frame);
-        vkResetFences(m_context->device_handle(), 1, &fence);
+
+        ANKH_VK_CHECK(vkResetFences(m_context->device_handle(), 1, &fence));
 
         record_command_buffer(frame, image_index);
 
@@ -564,7 +586,7 @@ namespace ankh
             glfwWaitEvents();
         }
 
-        vkDeviceWaitIdle(m_context->device_handle());
+        wait_for_all_frames();
 
         cleanup_swapchain();
 
@@ -609,7 +631,7 @@ namespace ankh
             draw_frame();
         }
 
-        vkDeviceWaitIdle(m_context->device_handle());
+        wait_for_all_frames();
     }
 
 } // namespace ankh
