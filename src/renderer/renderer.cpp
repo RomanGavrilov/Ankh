@@ -178,13 +178,18 @@ namespace ankh
 
     void Renderer::cleanup_swapchain()
     {
+        // Destroy in reverse order of creation to handle dependencies
+        m_ui_pass.reset();
+        m_draw_pass.reset();
+        m_graphics_pipeline.reset();
+
         if (m_swapchain)
         {
             m_swapchain->destroy_framebuffers();
         }
 
-        m_swapchain.reset();
         m_render_pass.reset();
+        m_swapchain.reset();
     }
 
     void Renderer::create_descriptor_pool()
@@ -561,15 +566,36 @@ namespace ankh
 
         cleanup_swapchain();
 
+        // Recreate swapchain
         m_swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
                                                   m_context->device_handle(),
                                                   m_context->allocator().handle(),
                                                   m_context->surface_handle(),
                                                   m_window->handle());
 
+        // Recreate render pass with new swapchain format
         m_render_pass =
             std::make_unique<RenderPass>(m_context->device_handle(), m_swapchain->image_format());
 
+        // Recreate graphics pipeline with new render pass
+        m_graphics_pipeline = std::make_unique<GraphicsPipeline>(m_context->device_handle(),
+                                                                 m_render_pass->handle(),
+                                                                 m_pipeline_layout->handle());
+
+        // Recreate draw passes with new pipeline references
+        m_draw_pass = std::make_unique<DrawPass>(m_context->device_handle(),
+                                                 *m_swapchain,
+                                                 *m_render_pass,
+                                                 *m_graphics_pipeline,
+                                                 *m_pipeline_layout);
+
+        m_ui_pass = std::make_unique<UiPass>(m_context->device_handle(),
+                                             *m_swapchain,
+                                             *m_render_pass,
+                                             *m_graphics_pipeline,
+                                             *m_pipeline_layout);
+
+        // Recreate framebuffers
         create_framebuffers();
     }
 
