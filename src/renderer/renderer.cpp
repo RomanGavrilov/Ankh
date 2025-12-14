@@ -178,7 +178,6 @@ namespace ankh
 
     void Renderer::cleanup_swapchain()
     {
-        // Destroy in reverse order of creation to handle dependencies
         m_ui_pass.reset();
         m_draw_pass.reset();
         m_graphics_pipeline.reset();
@@ -249,7 +248,7 @@ namespace ankh
             }
             else
             {
-                ANKH_LOG_WARN("Unsupported image component count in baseColorTexture; "
+                ANKH_LOG_WARN("[Renderer] Unsupported image component count in baseColorTexture; "
                               "falling back to checkerboard");
             }
         }
@@ -257,6 +256,9 @@ namespace ankh
         // Fallback if no suitable glTF image
         if (pixels.empty())
         {
+            ANKH_LOG_WARN(
+                "[Renderer] No suitable baseColorTexture found; using checkerboard fallback");
+
             // Tiny 2x2 checkerboard (white/black) in RGBA8
             texWidth = 2;
             texHeight = 2;
