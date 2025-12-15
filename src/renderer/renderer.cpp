@@ -208,6 +208,34 @@ namespace ankh
         m_deletion_queue->flush_all();
     }
 
+    void Renderer::retire_swapchain_resources(uint32_t retire_frame)
+    {
+        if (!m_swapchain)
+        {
+            return;
+        }
+
+        auto retired = m_swapchain->retire_resources();
+
+        VkDevice device = m_context->device_handle();
+
+        m_deletion_queue->enqueue(retire_frame,
+                                  [device,
+                                   views = std::move(retired.imageViews),
+                                   fbs = std::move(retired.framebuffers),
+                                   depth = std::move(retired.depthImage)]() mutable
+                                  {
+                                      for (VkImageView v : views)
+                                      {
+                                          if (v != VK_NULL_HANDLE)
+                                              vkDestroyImageView(device, v, nullptr);
+                                      }
+
+                                      // fbs and depth destruct here (RAII) when lambda goes out of
+                                      // scope.
+                                  });
+    }
+
     void Renderer::create_descriptor_pool()
     {
         m_descriptor_pool = std::make_unique<DescriptorPool>(m_context->device_handle(),
@@ -582,11 +610,20 @@ namespace ankh
         glfwGetFramebufferSize(m_window->handle(), &width, &height);
         while (width == 0 || height == 0)
         {
-            glfwGetFramebufferSize(m_window->handle(), &width, &height);
-            glfwWaitEvents();
+            return;
         }
 
+        // Retire swapchain resources used in previous swapchain
+        const uint32_t curr_frame = m_frame_sync->current();
+        const uint32_t fif = ankh::config().framesInFlight;
+        const uint32_t retire_frame = (curr_frame + fif - 1) % fif;
+        retire_swapchain_resources(retire_frame);
+
+        // Ensure no frames are in flight
         wait_for_all_frames();
+
+        // Ensure presentation is finished
+        vkQueueWaitIdle(m_context->present_queue());
 
         cleanup_swapchain();
 

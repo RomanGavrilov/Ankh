@@ -19,6 +19,13 @@ namespace ankh
     class Swapchain
     {
       public:
+        struct RetiredResources
+        {
+            std::vector<VkImageView> imageViews;
+            std::vector<Framebuffer> framebuffers;
+            std::unique_ptr<Image> depthImage;
+        };
+
         Swapchain(const PhysicalDevice &physicalDevice,
                   VkDevice device,
                   VmaAllocator allocator,
@@ -32,6 +39,8 @@ namespace ankh
 
         Swapchain(Swapchain &&other) noexcept;
         Swapchain &operator=(Swapchain &&other) noexcept;
+
+        RetiredResources retire_resources() noexcept;
 
         VkSwapchainKHR handle() const
         {

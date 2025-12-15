@@ -153,6 +153,20 @@ namespace ankh
         m_extent = extent;
     }
 
+    Swapchain::RetiredResources Swapchain::retire_resources() noexcept
+    {
+        RetiredResources out{};
+        out.imageViews = std::move(m_image_views);
+        out.framebuffers = std::move(m_framebuffers);
+        out.depthImage = std::move(m_depth_image);
+
+        m_image_views.clear();
+        m_framebuffers.clear();
+        m_depth_image.reset();
+
+        return out;
+    }
+
     void Swapchain::create_image_views()
     {
         m_image_views.resize(m_images.size());

@@ -2,17 +2,77 @@
 
 #include <cassert>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <mutex>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace ankh
 {
     class DeferredDeletionQueue
     {
+      private:
+        class DeferredTask
+        {
+          public:
+            DeferredTask() = default;
+
+            DeferredTask(const DeferredTask &) = delete;
+            DeferredTask &operator=(const DeferredTask &) = delete;
+
+            DeferredTask(DeferredTask &&) noexcept = default;
+            DeferredTask &operator=(DeferredTask &&) noexcept = default;
+
+            template <typename F> DeferredTask(F &&f)
+            {
+                using T = std::decay_t<F>;
+                static_assert(std::is_invocable_r_v<void, T>,
+                              "DeferredDeletionQueue task must be callable as void()");
+
+                m_self = std::make_unique<Model<T>>(std::forward<F>(f));
+            }
+
+            void operator()()
+            {
+                if (m_self)
+                    m_self->call();
+            }
+
+            explicit operator bool() const noexcept
+            {
+                return static_cast<bool>(m_self);
+            }
+
+          private:
+            struct Concept
+            {
+                virtual ~Concept() = default;
+                virtual void call() = 0;
+            };
+
+            template <typename T> struct Model final : Concept
+            {
+                explicit Model(T &&t)
+                    : fn(std::move(t))
+                {
+                }
+                explicit Model(const T &t)
+                    : fn(t)
+                {
+                }
+                void call() override
+                {
+                    fn();
+                }
+                T fn;
+            };
+
+            std::unique_ptr<Concept> m_self;
+        };
+
       public:
-        using Fn = std::function<void()>;
+        using Fn = DeferredTask;
 
         explicit DeferredDeletionQueue(uint32_t framesInFlight = 0)
         {
@@ -46,14 +106,10 @@ namespace ankh
                        "DeferredDeletionQueue::reset() called with pending deletions");
             }
 #endif
-
             m_frames.clear();
             m_frames.reserve(framesInFlight);
-
             for (uint32_t i = 0; i < framesInFlight; ++i)
-            {
                 m_frames.emplace_back(std::make_unique<FrameBucket>());
-            }
         }
 
         uint32_t frames_in_flight() const
@@ -61,37 +117,35 @@ namespace ankh
             return static_cast<uint32_t>(m_frames.size());
         }
 
-        void enqueue(uint32_t frameIndex, Fn fn)
+        // Enqueue move-only tasks safely.
+        template <typename F> void enqueue(uint32_t frameIndex, F &&fn)
         {
-#ifndef NDEBUG
             assert(!m_frames.empty() && "DeferredDeletionQueue used before initialization");
-#endif
+
             frameIndex %= static_cast<uint32_t>(m_frames.size());
             auto &bucket = *m_frames[frameIndex];
 
             {
                 std::scoped_lock lock(bucket.mutex);
-                bucket.items.emplace_back(std::move(fn));
+                bucket.items.emplace_back(std::forward<F>(fn));
             }
         }
 
-        void enqueue_after(uint32_t currentFrame, uint32_t delayFrames, Fn fn)
+        template <typename F>
+        void enqueue_after(uint32_t currentFrame, uint32_t delayFrames, F &&fn)
         {
-#ifndef NDEBUG
             assert(!m_frames.empty());
-#endif
+
             const uint32_t index =
                 (currentFrame + delayFrames) % static_cast<uint32_t>(m_frames.size());
 
-            enqueue(index, std::move(fn));
+            enqueue(index, std::forward<F>(fn));
         }
 
         void flush(uint32_t frameIndex)
         {
             if (m_frames.empty())
-            {
                 return;
-            }
 
             frameIndex %= static_cast<uint32_t>(m_frames.size());
             auto &bucket = *m_frames[frameIndex];
@@ -111,23 +165,15 @@ namespace ankh
         void flush_all()
         {
             if (m_frames.empty())
-            {
                 return;
-            }
 
             for (uint32_t i = 0; i < static_cast<uint32_t>(m_frames.size()); ++i)
-            {
                 flush(i);
-            }
         }
 
       private:
         struct FrameBucket
         {
-            FrameBucket() = default;
-            FrameBucket(const FrameBucket &) = delete;
-            FrameBucket &operator=(const FrameBucket &) = delete;
-
             std::mutex mutex;
             std::vector<Fn> items;
         };
