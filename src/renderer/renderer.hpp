@@ -60,7 +60,7 @@ namespace ankh
         void recreate_swapchain();
         void cleanup_swapchain();
         void wait_for_all_frames();
-        void retire_swapchain_resources(uint32_t retire_frame);
+        void retire_swapchain_resources();
 
       private:
         std::unique_ptr<Window> m_window;

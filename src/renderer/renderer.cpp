@@ -181,15 +181,11 @@ namespace ankh
 
     void Renderer::cleanup_swapchain()
     {
+        // These may have been moved into the deletion queue already.
         m_ui_pass.reset();
         m_draw_pass.reset();
         m_graphics_pipeline.reset();
-
-        if (m_swapchain)
-        {
-            m_swapchain->destroy_framebuffers();
-        }
-
+        m_pipeline_layout.reset();
         m_render_pass.reset();
         m_swapchain.reset();
     }
@@ -208,32 +204,62 @@ namespace ankh
         m_deletion_queue->flush_all();
     }
 
-    void Renderer::retire_swapchain_resources(uint32_t retire_frame)
+    void Renderer::retire_swapchain_resources()
     {
         if (!m_swapchain)
         {
             return;
         }
 
-        auto retired = m_swapchain->retire_resources();
-
+        const uint32_t cur = m_frame_sync->current();
+        const uint32_t delay = m_deletion_queue->frames_in_flight();
         VkDevice device = m_context->device_handle();
 
-        m_deletion_queue->enqueue(retire_frame,
-                                  [device,
-                                   views = std::move(retired.imageViews),
-                                   fbs = std::move(retired.framebuffers),
-                                   depth = std::move(retired.depthImage)]() mutable
-                                  {
-                                      for (VkImageView v : views)
-                                      {
-                                          if (v != VK_NULL_HANDLE)
-                                              vkDestroyImageView(device, v, nullptr);
-                                      }
+        // 1) retire swapchain-owned resources
+        auto retired = m_swapchain->retire_resources();
+        m_deletion_queue->enqueue_after(cur,
+                                        delay,
+                                        [device,
+                                         views = std::move(retired.imageViews),
+                                         fbs = std::move(retired.framebuffers),
+                                         depth = std::move(retired.depthImage)]() mutable
+                                        {
+                                            for (VkImageView v : views)
+                                                if (v)
+                                                    vkDestroyImageView(device, v, nullptr);
+                                        });
 
-                                      // fbs and depth destruct here (RAII) when lambda goes out of
-                                      // scope.
-                                  });
+        // 2) retire swapchain-dependent graph objects
+        if (m_ui_pass)
+        {
+            m_deletion_queue->enqueue_after(cur, delay, [p = std::move(m_ui_pass)]() mutable {});
+        }
+
+        if (m_draw_pass)
+        {
+            m_deletion_queue->enqueue_after(cur, delay, [p = std::move(m_draw_pass)]() mutable {});
+        }
+
+        if (m_graphics_pipeline)
+        {
+            m_deletion_queue->enqueue_after(cur,
+                                            delay,
+                                            [p = std::move(m_graphics_pipeline)]() mutable {});
+        }
+
+        if (m_pipeline_layout)
+        {
+            m_deletion_queue->enqueue_after(cur,
+                                            delay,
+                                            [p = std::move(m_pipeline_layout)]() mutable {});
+        }
+
+        if (m_render_pass)
+        {
+            m_deletion_queue->enqueue_after(cur,
+                                            delay,
+                                            [p = std::move(m_render_pass)]() mutable {});
+        }
     }
 
     void Renderer::create_descriptor_pool()
@@ -545,6 +571,7 @@ namespace ankh
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR)
         {
+            m_window->set_framebuffer_resized(false);
             recreate_swapchain();
             return;
         }
@@ -607,17 +634,17 @@ namespace ankh
     void Renderer::recreate_swapchain()
     {
         int width = 0, height = 0;
+
         glfwGetFramebufferSize(m_window->handle(), &width, &height);
-        while (width == 0 || height == 0)
+
+        if (width == 0 || height == 0)
         {
             return;
         }
 
         // Retire swapchain resources used in previous swapchain
-        const uint32_t curr_frame = m_frame_sync->current();
-        const uint32_t fif = ankh::config().framesInFlight;
-        const uint32_t retire_frame = (curr_frame + fif - 1) % fif;
-        retire_swapchain_resources(retire_frame);
+
+        retire_swapchain_resources();
 
         // Ensure no frames are in flight
         wait_for_all_frames();
@@ -637,6 +664,10 @@ namespace ankh
         // Recreate render pass with new swapchain format
         m_render_pass =
             std::make_unique<RenderPass>(m_context->device_handle(), m_swapchain->image_format());
+
+        // Recreate pipeline layout
+        m_pipeline_layout = std::make_unique<PipelineLayout>(m_context->device_handle(),
+                                                             m_descriptor_set_layout->handle());
 
         // Recreate graphics pipeline with new render pass
         m_graphics_pipeline = std::make_unique<GraphicsPipeline>(m_context->device_handle(),
