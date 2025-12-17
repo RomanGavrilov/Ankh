@@ -1,0 +1,2 @@
+/usr/bin/ar qc libvma.a CMakeFiles/vma.dir/src/vk_mem_alloc.cpp.o
+/usr/bin/ranlib libvma.a

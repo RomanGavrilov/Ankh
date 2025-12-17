@@ -1,0 +1,2 @@
+/usr/bin/ar qc libankh_shaders.a "CMakeFiles/ankh_shaders.dir/shader-module.cpp.o"
+/usr/bin/ranlib libankh_shaders.a

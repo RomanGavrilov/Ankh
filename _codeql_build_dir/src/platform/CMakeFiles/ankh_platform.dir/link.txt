@@ -1,0 +1,2 @@
+/usr/bin/ar qc libankh_platform.a CMakeFiles/ankh_platform.dir/window.cpp.o CMakeFiles/ankh_platform.dir/surface.cpp.o
+/usr/bin/ranlib libankh_platform.a

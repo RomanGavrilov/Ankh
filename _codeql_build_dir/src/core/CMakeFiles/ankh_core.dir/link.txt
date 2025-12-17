@@ -1,0 +1,2 @@
+/usr/bin/ar qc libankh_core.a CMakeFiles/ankh_core.dir/instance.cpp.o "CMakeFiles/ankh_core.dir/debug-messenger.cpp.o" "CMakeFiles/ankh_core.dir/physical-device.cpp.o" CMakeFiles/ankh_core.dir/device.cpp.o CMakeFiles/ankh_core.dir/context.cpp.o
+/usr/bin/ranlib libankh_core.a

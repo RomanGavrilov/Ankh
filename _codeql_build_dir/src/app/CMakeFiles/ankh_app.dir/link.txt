@@ -1,0 +1,2 @@
+/usr/bin/ar qc libankh_app.a CMakeFiles/ankh_app.dir/application.cpp.o
+/usr/bin/ranlib libankh_app.a
