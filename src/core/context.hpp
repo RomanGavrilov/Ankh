@@ -32,42 +32,24 @@ namespace ankh
         Context(Context &&) = delete;
         Context &operator=(Context &&) = delete;
 
-        Instance &instance()
-        {
-            return *m_instance;
-        }
+        Instance &instance();
+        const Instance &instance() const;
 
-        DebugMessenger *debug()
-        {
-            return m_debug_messenger.get();
-        }
+        DebugMessenger *debug();
+        const DebugMessenger *debug() const;
 
-        PhysicalDevice &physical_device()
-        {
-            return *m_physical_device;
-        }
+        PhysicalDevice &physical_device();
+        const PhysicalDevice &physical_device() const;
 
-        Device &device()
-        {
-            return *m_device;
-        }
+        Device &device();
+        const Device &device() const;
 
-        Surface &surface()
-        {
-            return *m_surface;
-        }
+        Surface &surface();
+        const Surface &surface() const;
 
-        Allocator &allocator()
-        {
-            return *m_allocator;
-        }
+        Allocator &allocator();
+        const Allocator &allocator() const;
 
-        const Allocator &allocator() const
-        {
-            return *m_allocator;
-        }
-
-        // Convenience raw handles / info
         VkInstance instance_handle() const;
         VkDevice device_handle() const;
         VkSurfaceKHR surface_handle() const;

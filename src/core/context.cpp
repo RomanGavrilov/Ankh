@@ -53,6 +53,61 @@ namespace ankh
 #endif
     }
 
+    Instance &Context::instance()
+    {
+        return *m_instance;
+    }
+
+    DebugMessenger *Context::debug()
+    {
+        return m_debug_messenger.get();
+    }
+
+    const DebugMessenger *Context::debug() const
+    {
+        return m_debug_messenger.get();
+    }
+
+    PhysicalDevice &Context::physical_device()
+    {
+        return *m_physical_device;
+    }
+
+    const PhysicalDevice &Context::physical_device() const
+    {
+        return *m_physical_device;
+    }
+
+    Device &Context::device()
+    {
+        return *m_device;
+    }
+
+    const Device &Context::device() const
+    {
+        return *m_device;
+    }
+
+    Surface &Context::surface()
+    {
+        return *m_surface;
+    }
+
+    const Surface &Context::surface() const
+    {
+        return *m_surface;
+    }
+
+    Allocator &Context::allocator()
+    {
+        return *m_allocator;
+    }
+
+    const Allocator &Context::allocator() const
+    {
+        return *m_allocator;
+    }
+
     VkInstance Context::instance_handle() const
     {
         return m_instance ? m_instance->handle() : VK_NULL_HANDLE;
