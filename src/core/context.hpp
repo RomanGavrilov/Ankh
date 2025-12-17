@@ -8,6 +8,7 @@
 #include "memory/allocator.hpp"
 #include "platform/surface.hpp"
 #include "utils/types.hpp"
+#include "utils/gpu-resource-tracker.hpp"
 #include <memory>
 
 namespace ankh
@@ -75,6 +76,11 @@ namespace ankh
 
         QueueFamilyIndices queues() const;
 
+        GpuResourceTracker &gpu_resource_tracker()
+        {
+            return *m_gpu_resource_tracker;
+        }
+
       private:
         std::unique_ptr<Instance> m_instance;
         std::unique_ptr<DebugMessenger> m_debug_messenger;
@@ -82,6 +88,7 @@ namespace ankh
         std::unique_ptr<PhysicalDevice> m_physical_device;
         std::unique_ptr<Device> m_device;
         std::unique_ptr<Allocator> m_allocator;
+        std::unique_ptr<GpuResourceTracker> m_gpu_resource_tracker;
     };
 
 } // namespace ankh

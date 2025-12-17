@@ -5,6 +5,7 @@ add_library(ankh_utils STATIC
     file-io.cpp
     logging.cpp
     config.cpp
+    gpu-resource-tracker.cpp
 )
 
 target_include_directories(ankh_utils
@@ -18,7 +19,7 @@ target_include_directories(ankh_utils
 
 target_link_libraries(ankh_utils
     PUBLIC
-        glm     # header-only, but OK to link
+        glm
         glfw
         Vulkan::Vulkan
         stb
