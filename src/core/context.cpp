@@ -58,6 +58,11 @@ namespace ankh
         return m_instance ? m_instance->handle() : VK_NULL_HANDLE;
     }
 
+    VkPhysicalDevice Context::physical_device_handle() const
+    {
+        return m_physical_device ? m_physical_device->handle() : VK_NULL_HANDLE;
+    }
+
     VkDevice Context::device_handle() const
     {
         return m_device ? m_device->handle() : VK_NULL_HANDLE;
@@ -66,6 +71,11 @@ namespace ankh
     VkSurfaceKHR Context::surface_handle() const
     {
         return m_surface ? m_surface->handle() : VK_NULL_HANDLE;
+    }
+
+    VmaAllocator Context::allocator_handle() const
+    {
+        return m_allocator ? m_allocator->handle() : VK_NULL_HANDLE;
     }
 
     VkQueue Context::graphics_queue() const

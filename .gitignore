@@ -43,6 +43,8 @@ summary.txt
 *.app
 *.spv
 *.cmake
+!shaders/compile.cmake
+!libs/glfw/CMake/GenerateMappings.cmake
 
 # debug information files
 *.dwo

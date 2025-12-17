@@ -87,7 +87,7 @@ namespace ankh
 
         m_swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
                                                   m_context->device_handle(),
-                                                  m_context->allocator().handle(),
+                                                  m_context->allocator_handle(),
                                                   m_context->surface_handle(),
                                                   m_window->handle());
 
@@ -158,7 +158,7 @@ namespace ankh
             }
         }
 
-        m_gpu_mesh_pool = std::make_unique<GpuMeshPool>(m_context->allocator().handle(),
+        m_gpu_mesh_pool = std::make_unique<GpuMeshPool>(m_context->allocator_handle(),
                                                         m_context->device_handle(),
                                                         *m_upload_context);
 
@@ -356,7 +356,7 @@ namespace ankh
         const VkDeviceSize imageSize = static_cast<VkDeviceSize>(pixels.size());
 
         // Staging buffer
-        Buffer staging(m_context->allocator().handle(),
+        Buffer staging(m_context->allocator_handle(),
                        m_context->device_handle(),
                        imageSize,
                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -369,7 +369,7 @@ namespace ankh
 
         // Device-local texture
         m_texture =
-            std::make_unique<Texture>(m_context->allocator().handle(),
+            std::make_unique<Texture>(m_context->allocator_handle(),
                                       m_context->device_handle(),
                                       texWidth,
                                       texHeight,
@@ -426,7 +426,7 @@ namespace ankh
 
         for (uint32_t i = 0; i < ankh::config().framesInFlight; ++i)
         {
-            m_frames.emplace_back(m_context->allocator().handle(),
+            m_frames.emplace_back(m_context->allocator_handle(),
                                   m_context->device_handle(),
                                   graphicsFamily,
                                   uboSize,
@@ -657,7 +657,7 @@ namespace ankh
         // Recreate swapchain
         m_swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
                                                   m_context->device_handle(),
-                                                  m_context->allocator().handle(),
+                                                  m_context->allocator_handle(),
                                                   m_context->surface_handle(),
                                                   m_window->handle());
 

@@ -69,8 +69,10 @@ namespace ankh
 
         // Convenience raw handles / info
         VkInstance instance_handle() const;
+        VkPhysicalDevice physical_device_handle() const;
         VkDevice device_handle() const;
         VkSurfaceKHR surface_handle() const;
+        VmaAllocator allocator_handle() const;
 
         VkQueue graphics_queue() const;
         VkQueue present_queue() const;
