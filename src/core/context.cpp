@@ -34,6 +34,25 @@ namespace ankh
                                                   m_device->handle());
     }
 
+    Context::~Context()
+    {
+        if (m_device)
+        {
+            vkDeviceWaitIdle(m_device->handle());
+        }
+
+        m_allocator.reset();
+        m_device.reset();
+        m_physical_device.reset();
+        m_surface.reset();
+        m_debug_messenger.reset();
+        m_instance.reset();
+
+#ifndef NDEBUG
+        m_gpu_resource_tracker.report_leaks();
+#endif
+    }
+
     VkInstance Context::instance_handle() const
     {
         return m_instance ? m_instance->handle() : VK_NULL_HANDLE;
