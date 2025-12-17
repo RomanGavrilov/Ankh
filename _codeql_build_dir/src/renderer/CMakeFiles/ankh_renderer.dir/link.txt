@@ -1,2 +1,0 @@
-/usr/bin/ar qc libankh_renderer.a CMakeFiles/ankh_renderer.dir/renderer.cpp.o "CMakeFiles/ankh_renderer.dir/draw-pass.cpp.o" "CMakeFiles/ankh_renderer.dir/ui-pass.cpp.o" "CMakeFiles/ankh_renderer.dir/scene-renderer.cpp.o" "CMakeFiles/ankh_renderer.dir/gpu-mesh-pool.cpp.o"
-/usr/bin/ranlib libankh_renderer.a

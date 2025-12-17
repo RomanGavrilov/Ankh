@@ -1,2 +1,0 @@
-/usr/bin/ar qc libankh_utils.a CMakeFiles/ankh_utils.dir/types.cpp.o "CMakeFiles/ankh_utils.dir/file-io.cpp.o" CMakeFiles/ankh_utils.dir/logging.cpp.o CMakeFiles/ankh_utils.dir/config.cpp.o "CMakeFiles/ankh_utils.dir/gpu-resource-tracker.cpp.o"
-/usr/bin/ranlib libankh_utils.a

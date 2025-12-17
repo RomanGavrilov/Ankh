@@ -1,2 +1,0 @@
-/usr/bin/ar qc libankh_commands.a "CMakeFiles/ankh_commands.dir/command-pool.cpp.o" "CMakeFiles/ankh_commands.dir/command-buffer.cpp.o"
-/usr/bin/ranlib libankh_commands.a

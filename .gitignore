@@ -1,5 +1,6 @@
 # Ignore the build directory
 /build/
+/_codeql_build_dir/
 /.vscode/
 summary.py
 summary.txt

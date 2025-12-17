@@ -1,2 +1,0 @@
-/usr/bin/ar qc libankh_memory.a CMakeFiles/ankh_memory.dir/allocator.cpp.o CMakeFiles/ankh_memory.dir/buffer.cpp.o "CMakeFiles/ankh_memory.dir/upload-context.cpp.o" CMakeFiles/ankh_memory.dir/image.cpp.o CMakeFiles/ankh_memory.dir/texture.cpp.o
-/usr/bin/ranlib libankh_memory.a
