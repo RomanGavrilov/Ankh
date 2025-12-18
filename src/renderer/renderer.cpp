@@ -75,6 +75,9 @@ namespace ankh
 
         vkQueueWaitIdle(m_context->present_queue());
 
+        // Explicitly destroy swapchain and its framebuffers before reporting leaks
+        m_swapchain.reset();
+
 #ifndef NDEBUG
         m_context->gpu_tracker().report_leaks();
 #endif
