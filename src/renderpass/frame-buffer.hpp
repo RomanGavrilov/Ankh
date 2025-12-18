@@ -29,6 +29,9 @@ namespace ankh
         }
 
       private:
+        void destroy();
+
+      private:
         VkDevice m_device;
         VkFramebuffer m_framebuffer;
         GpuResourceTracker *m_tracker;

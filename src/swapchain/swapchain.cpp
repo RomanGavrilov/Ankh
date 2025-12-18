@@ -33,13 +33,30 @@ namespace ankh
 
     Swapchain::~Swapchain()
     {
+        destroy();
+    }
+
+    void Swapchain::destroy()
+    {
+        if (m_device == VK_NULL_HANDLE)
+        {
+            return;
+        }
+
+        // Framebuffers are RAII — their destructors track + destroy
         m_framebuffers.clear();
 
-        m_depth_image.reset();
-
-        for (auto view : m_image_views)
+        if (m_depth_image)
         {
-            vkDestroyImageView(m_device, view, nullptr);
+            m_depth_image.reset();
+        }
+
+        for (VkImageView v : m_image_views)
+        {
+            if (v != VK_NULL_HANDLE)
+            {
+                vkDestroyImageView(m_device, v, nullptr);
+            }
         }
 
         m_image_views.clear();
@@ -49,45 +66,49 @@ namespace ankh
             vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
             m_swapchain = VK_NULL_HANDLE;
         }
+
+        m_device = VK_NULL_HANDLE;
+        m_tracker = nullptr;
     }
 
     Swapchain::Swapchain(Swapchain &&other) noexcept
+        : m_device(other.m_device)
+        , m_allocator(other.m_allocator)
+        , m_swapchain(other.m_swapchain)
+        , m_images(std::move(other.m_images))
+        , m_image_views(std::move(other.m_image_views))
+        , m_depth_image(std::move(other.m_depth_image))
+        , m_depth_format(other.m_depth_format)
+        , m_framebuffers(std::move(other.m_framebuffers))
+        , m_tracker(other.m_tracker)
     {
-        *this = std::move(other);
+        other.m_device = VK_NULL_HANDLE;
+        other.m_swapchain = VK_NULL_HANDLE;
+        other.m_tracker = nullptr;
     }
 
     Swapchain &Swapchain::operator=(Swapchain &&other) noexcept
     {
         if (this == &other)
+        {
             return *this;
+        }
 
-        this->~Swapchain();
+        destroy();
 
         m_device = other.m_device;
         m_allocator = other.m_allocator;
-
         m_swapchain = other.m_swapchain;
-        m_image_format = other.m_image_format;
-        m_extent = other.m_extent;
-
         m_images = std::move(other.m_images);
         m_image_views = std::move(other.m_image_views);
-
         m_depth_image = std::move(other.m_depth_image);
         m_depth_format = other.m_depth_format;
-
         m_framebuffers = std::move(other.m_framebuffers);
+        m_tracker = other.m_tracker;
 
         other.m_device = VK_NULL_HANDLE;
-        other.m_allocator = VK_NULL_HANDLE;
         other.m_swapchain = VK_NULL_HANDLE;
-        other.m_image_format = {};
-        other.m_extent = {};
-        other.m_depth_format = {};
-        other.m_images.clear();
-        other.m_image_views.clear();
-        other.m_framebuffers.clear();
-        other.m_depth_image.reset();
+        other.m_tracker = nullptr;
 
         return *this;
     }
@@ -240,6 +261,7 @@ namespace ankh
         }
     }
 
+    // TODO delete this as it's not used?
     void Swapchain::destroy_framebuffers()
     {
         m_framebuffers.clear(); // Framebuffer RAII will destroy VkFramebuffer

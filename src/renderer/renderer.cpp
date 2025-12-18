@@ -71,9 +71,19 @@ namespace ankh
             return;
         }
 
+        if (m_swapchain)
+        {
+            retire_swapchain_resources();
+        }
+
         wait_for_all_frames();
 
         vkQueueWaitIdle(m_context->present_queue());
+
+        if (m_deletion_queue)
+        {
+            m_deletion_queue->flush_all();
+        }
 
 #ifndef NDEBUG
         m_context->gpu_tracker().report_leaks();

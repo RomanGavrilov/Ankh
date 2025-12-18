@@ -28,44 +28,58 @@ namespace ankh
         ANKH_GPU_TRACK_CREATE(m_tracker, "VkFramebuffer", m_framebuffer, "Framebuffer");
     }
 
-    Framebuffer::Framebuffer(Framebuffer &&other) noexcept
-        : m_device(other.m_device)
-        , m_framebuffer(other.m_framebuffer)
+    void Framebuffer::destroy()
     {
-        other.m_device = {};
-        other.m_framebuffer = {};
-    }
-
-    Framebuffer &Framebuffer::operator=(Framebuffer &&other) noexcept
-    {
-        if (this != &other)
+        if (m_device == VK_NULL_HANDLE)
         {
-            if (m_framebuffer)
-            {
-                vkDestroyFramebuffer(m_device, m_framebuffer, nullptr);
-            }
-
-            m_device = other.m_device;
-            m_framebuffer = other.m_framebuffer;
-
-            other.m_device = VK_NULL_HANDLE;
-            other.m_framebuffer = VK_NULL_HANDLE;
-
-            m_tracker = other.m_tracker;
-            other.m_tracker = nullptr;
+            return;
         }
 
-        return *this;
+        ANKH_GPU_TRACK_DESTROY(m_tracker, m_framebuffer);
+
+        if (m_framebuffer != VK_NULL_HANDLE)
+        {
+            vkDestroyFramebuffer(m_device, m_framebuffer, nullptr);
+            m_framebuffer = VK_NULL_HANDLE;
+        }
+
+        m_device = VK_NULL_HANDLE;
+        m_tracker = nullptr;
     }
 
     Framebuffer::~Framebuffer()
     {
-        ANKH_GPU_TRACK_DESTROY(m_tracker, m_framebuffer);
+        destroy();
+    }
 
-        if (m_framebuffer)
+    Framebuffer::Framebuffer(Framebuffer &&other) noexcept
+        : m_device(other.m_device)
+        , m_framebuffer(other.m_framebuffer)
+        , m_tracker(other.m_tracker)
+    {
+        other.m_device = VK_NULL_HANDLE;
+        other.m_framebuffer = VK_NULL_HANDLE;
+        other.m_tracker = nullptr;
+    }
+
+    Framebuffer &Framebuffer::operator=(Framebuffer &&other) noexcept
+    {
+        if (this == &other)
         {
-            vkDestroyFramebuffer(m_device, m_framebuffer, nullptr);
+            return *this;
         }
+
+        destroy();
+
+        m_device = other.m_device;
+        m_framebuffer = other.m_framebuffer;
+        m_tracker = other.m_tracker;
+
+        other.m_device = VK_NULL_HANDLE;
+        other.m_framebuffer = VK_NULL_HANDLE;
+        other.m_tracker = nullptr;
+
+        return *this;
     }
 
 } // namespace ankh

@@ -106,10 +106,9 @@ namespace ankh
         VkExtent2D choose_extent(const VkSurfaceCapabilitiesKHR &caps, GLFWwindow *window) const;
 
       private:
-#ifndef NDEBUG
-        GpuResourceTracker *m_tracker;
-#endif
+        void destroy();
 
+      private:
         VkDevice m_device;
         VmaAllocator m_allocator;
         VkSwapchainKHR m_swapchain;
@@ -123,6 +122,8 @@ namespace ankh
         VkFormat m_depth_format;
 
         std::vector<Framebuffer> m_framebuffers;
+
+        GpuResourceTracker *m_tracker;
     };
 
 } // namespace ankh
