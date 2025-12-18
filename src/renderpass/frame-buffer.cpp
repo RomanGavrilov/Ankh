@@ -1,6 +1,7 @@
 #include "renderpass/frame-buffer.hpp"
+#include "utils/gpu-tracking.hpp"
+#include "utils/logging.hpp"
 #include <stdexcept>
-#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -8,8 +9,10 @@ namespace ankh
     Framebuffer::Framebuffer(VkDevice device,
                              VkRenderPass render_pass,
                              const std::vector<VkImageView> &attachments,
-                             VkExtent2D extent)
-        : m_device(device)
+                             VkExtent2D extent,
+                             GpuResourceTracker *tracker)
+        : m_device{device}
+        , m_tracker{tracker}
     {
 
         VkFramebufferCreateInfo info{};
@@ -22,6 +25,7 @@ namespace ankh
         info.layers = 1;
 
         ANKH_VK_CHECK(vkCreateFramebuffer(m_device, &info, nullptr, &m_framebuffer));
+        ANKH_GPU_TRACK_CREATE(m_tracker, "VkFramebuffer", m_framebuffer, "Framebuffer");
     }
 
     Framebuffer::Framebuffer(Framebuffer &&other) noexcept
@@ -46,12 +50,18 @@ namespace ankh
 
             other.m_device = VK_NULL_HANDLE;
             other.m_framebuffer = VK_NULL_HANDLE;
+
+            m_tracker = other.m_tracker;
+            other.m_tracker = nullptr;
         }
+
         return *this;
     }
 
     Framebuffer::~Framebuffer()
     {
+        ANKH_GPU_TRACK_DESTROY(m_tracker, m_framebuffer);
+
         if (m_framebuffer)
         {
             vkDestroyFramebuffer(m_device, m_framebuffer, nullptr);

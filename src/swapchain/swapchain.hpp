@@ -30,7 +30,8 @@ namespace ankh
                   VkDevice device,
                   VmaAllocator allocator,
                   VkSurfaceKHR surface,
-                  GLFWwindow *window);
+                  GLFWwindow *window,
+                  GpuResourceTracker *tracker = nullptr);
 
         ~Swapchain();
 
@@ -105,19 +106,22 @@ namespace ankh
         VkExtent2D choose_extent(const VkSurfaceCapabilitiesKHR &caps, GLFWwindow *window) const;
 
       private:
-        VkDevice m_device{VK_NULL_HANDLE};
-        VmaAllocator m_allocator{VK_NULL_HANDLE};
-        VkSwapchainKHR m_swapchain{VK_NULL_HANDLE};
-        VkFormat m_image_format{};
-        VkExtent2D m_extent{};
+#ifndef NDEBUG
+        GpuResourceTracker *m_tracker;
+#endif
+
+        VkDevice m_device;
+        VmaAllocator m_allocator;
+        VkSwapchainKHR m_swapchain;
+        VkFormat m_image_format;
+        VkExtent2D m_extent;
 
         std::vector<VkImage> m_images;
         std::vector<VkImageView> m_image_views;
 
         std::unique_ptr<Image> m_depth_image;
-        VkFormat m_depth_format{};
+        VkFormat m_depth_format;
 
-        // New: framebuffer per swapchain image
         std::vector<Framebuffer> m_framebuffers;
     };
 

@@ -12,7 +12,7 @@ namespace ankh
                                        const char *file,
                                        int line)
     {
-        if (handle == 0)
+        if (0 == handle)
         {
             return;
         }
@@ -25,7 +25,7 @@ namespace ankh
 
     void GpuResourceTracker::on_destroy(uint64_t handle)
     {
-        if (handle == 0)
+        if (0 == handle)
         {
             return;
         }

@@ -3,11 +3,16 @@
 
 namespace ankh
 {
+    class GpuResourceTracker;
 
     class Framebuffer
     {
       public:
-        Framebuffer(VkDevice device, VkRenderPass render_pass, const std::vector<VkImageView> &attachments, VkExtent2D extent);
+        Framebuffer(VkDevice device,
+                    VkRenderPass render_pass,
+                    const std::vector<VkImageView> &attachments,
+                    VkExtent2D extent,
+                    GpuResourceTracker *tracker = nullptr);
 
         ~Framebuffer();
 
@@ -18,11 +23,15 @@ namespace ankh
         Framebuffer(const Framebuffer &) = delete;
         Framebuffer &operator=(const Framebuffer &) = delete;
 
-        VkFramebuffer handle() const { return m_framebuffer; }
+        VkFramebuffer handle() const
+        {
+            return m_framebuffer;
+        }
 
       private:
-        VkDevice m_device{VK_NULL_HANDLE};
-        VkFramebuffer m_framebuffer{VK_NULL_HANDLE};
+        VkDevice m_device;
+        VkFramebuffer m_framebuffer;
+        GpuResourceTracker *m_tracker;
     };
 
 } // namespace ankh

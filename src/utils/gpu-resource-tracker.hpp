@@ -52,14 +52,3 @@ namespace ankh
 #endif
 
 } // namespace ankh
-
-#ifndef NDEBUG
-#define ANKH_GPU_TRACK_CREATE(tracker, type, handle, name)                                         \
-    (tracker).on_create(type, reinterpret_cast<uint64_t>(handle), name, __FILE__, __LINE__)
-
-#define ANKH_GPU_TRACK_DESTROY(tracker, handle)                                                    \
-    (tracker).on_destroy(reinterpret_cast<uint64_t>(handle))
-#else
-#define ANKH_GPU_TRACK_CREATE(...) ((void)0)
-#define ANKH_GPU_TRACK_DESTROY(...) ((void)0)
-#endif

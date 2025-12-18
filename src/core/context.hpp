@@ -25,8 +25,6 @@ namespace ankh
       public:
         explicit Context(GLFWwindow *window);
 
-        ~Context();
-
         Context(const Context &) = delete;
         Context &operator=(const Context &) = delete;
         Context(Context &&) = delete;
@@ -59,18 +57,22 @@ namespace ankh
 
         QueueFamilyIndices queues() const;
 
-        GpuResourceTracker &gpu_resource_tracker()
+#ifndef NDEBUG
+        GpuResourceTracker &gpu_tracker()
         {
-            return m_gpu_resource_tracker;
+            return m_gpu_tracker;
         }
 
-        const GpuResourceTracker &gpu_resource_tracker() const
+        const GpuResourceTracker &gpu_tracker() const
         {
-            return m_gpu_resource_tracker;
+            return m_gpu_tracker;
         }
+#endif
 
       private:
-        GpuResourceTracker m_gpu_resource_tracker;
+#ifndef NDEBUG
+        GpuResourceTracker m_gpu_tracker;
+#endif
 
         std::unique_ptr<Instance> m_instance;
         std::unique_ptr<DebugMessenger> m_debug_messenger;

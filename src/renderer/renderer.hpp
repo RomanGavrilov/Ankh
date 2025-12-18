@@ -36,6 +36,7 @@ namespace ankh
     class GpuMeshPool;
     class Texture;
     class DeferredDeletionQueue;
+    class GpuResourceTracker;
 
     class Renderer
     {
@@ -61,6 +62,7 @@ namespace ankh
         void cleanup_swapchain();
         void wait_for_all_frames();
         void retire_swapchain_resources();
+        GpuResourceTracker* tracker() const;
 
       private:
         std::unique_ptr<Window> m_window;
