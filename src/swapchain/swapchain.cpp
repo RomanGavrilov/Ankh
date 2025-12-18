@@ -19,9 +19,12 @@ namespace ankh
                          VkDevice device,
                          VmaAllocator allocator,
                          VkSurfaceKHR surface,
-                         GLFWwindow *window)
-        : m_device(device)
-        , m_allocator(allocator)
+                         GLFWwindow *window,
+                         GpuResourceTracker *tracker)
+
+        : m_tracker{tracker}
+        , m_device{device}
+        , m_allocator{allocator}
     {
         create_swapchain(physicalDevice, surface, window);
         create_image_views();
@@ -233,7 +236,7 @@ namespace ankh
                 m_depth_image->view() // depth
             };
 
-            m_framebuffers.emplace_back(m_device, renderPass, attachments, m_extent);
+            m_framebuffers.emplace_back(m_device, renderPass, attachments, m_extent, m_tracker);
         }
     }
 

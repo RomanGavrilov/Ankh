@@ -30,6 +30,7 @@
 #include "pipeline/pipeline-layout.hpp"
 
 #include "utils/deferred-deletion-queue.hpp"
+#include "utils/gpu-tracking.hpp"
 #include "utils/types.hpp"
 
 #include "memory/buffer.hpp"
@@ -65,15 +66,23 @@ namespace ankh
 
     Renderer::~Renderer()
     {
-        if (m_context)
+        if (!m_context)
         {
-            vkDeviceWaitIdle(m_context->device_handle());
+            return;
         }
+
+        wait_for_all_frames();
+
+        vkQueueWaitIdle(m_context->present_queue());
+
+#ifndef NDEBUG
+        m_context->gpu_tracker().report_leaks();
+#endif
     }
 
     void Renderer::init_vulkan()
     {
-        m_window = std::make_unique<Window>("Vulkan", ankh::config().Width, ankh::config().Height);
+        m_window = std::make_unique<Window>("Ankh", ankh::config().Width, ankh::config().Height);
 
         // Context sets up instance, debug, surface, physical device, device
         m_context = std::make_unique<Context>(m_window->handle());
@@ -89,7 +98,8 @@ namespace ankh
                                                   m_context->device_handle(),
                                                   m_context->allocator().handle(),
                                                   m_context->surface_handle(),
-                                                  m_window->handle());
+                                                  m_window->handle(),
+                                                  tracker());
 
         m_render_pass =
             std::make_unique<RenderPass>(m_context->device_handle(), m_swapchain->image_format());
@@ -642,19 +652,14 @@ namespace ankh
             return;
         }
 
-        // Retire swapchain resources used in previous swapchain
-
         retire_swapchain_resources();
 
-        // Ensure no frames are in flight
         wait_for_all_frames();
 
-        // Ensure presentation is finished
         vkQueueWaitIdle(m_context->present_queue());
 
         cleanup_swapchain();
 
-        // Recreate swapchain
         m_swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
                                                   m_context->device_handle(),
                                                   m_context->allocator().handle(),
@@ -681,6 +686,7 @@ namespace ankh
                                                  *m_graphics_pipeline,
                                                  *m_pipeline_layout);
 
+        // Recreate UI pass with new pipeline references
         m_ui_pass = std::make_unique<UiPass>(m_context->device_handle(),
                                              *m_swapchain,
                                              *m_render_pass,
@@ -700,6 +706,15 @@ namespace ankh
         }
 
         wait_for_all_frames();
+    }
+
+    GpuResourceTracker *Renderer::tracker() const
+    {
+#ifndef NDEBUG
+        return m_context ? &m_context->gpu_tracker() : nullptr;
+#else
+        return nullptr;
+#endif
     }
 
 } // namespace ankh
