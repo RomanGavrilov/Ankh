@@ -63,6 +63,9 @@ namespace ankh
 
         this->~Swapchain();
 
+#ifndef NDEBUG
+        m_tracker = other.m_tracker;
+#endif
         m_device = other.m_device;
         m_allocator = other.m_allocator;
 
@@ -78,6 +81,9 @@ namespace ankh
 
         m_framebuffers = std::move(other.m_framebuffers);
 
+#ifndef NDEBUG
+        other.m_tracker = nullptr;
+#endif
         other.m_device = VK_NULL_HANDLE;
         other.m_allocator = VK_NULL_HANDLE;
         other.m_swapchain = VK_NULL_HANDLE;

@@ -31,15 +31,19 @@ namespace ankh
     Framebuffer::Framebuffer(Framebuffer &&other) noexcept
         : m_device(other.m_device)
         , m_framebuffer(other.m_framebuffer)
+        , m_tracker(other.m_tracker)
     {
         other.m_device = {};
         other.m_framebuffer = {};
+        other.m_tracker = nullptr;
     }
 
     Framebuffer &Framebuffer::operator=(Framebuffer &&other) noexcept
     {
         if (this != &other)
         {
+            ANKH_GPU_TRACK_DESTROY(m_tracker, m_framebuffer);
+
             if (m_framebuffer)
             {
                 vkDestroyFramebuffer(m_device, m_framebuffer, nullptr);
@@ -47,11 +51,10 @@ namespace ankh
 
             m_device = other.m_device;
             m_framebuffer = other.m_framebuffer;
+            m_tracker = other.m_tracker;
 
             other.m_device = VK_NULL_HANDLE;
             other.m_framebuffer = VK_NULL_HANDLE;
-
-            m_tracker = other.m_tracker;
             other.m_tracker = nullptr;
         }
 
