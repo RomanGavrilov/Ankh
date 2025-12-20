@@ -446,6 +446,7 @@ namespace ankh
 
         for (uint32_t i = 0; i < ankh::config().framesInFlight; ++i)
         {
+            // Construct FrameContext
             m_frames.emplace_back(m_context->allocator().handle(),
                                   m_context->device_handle(),
                                   graphicsFamily,

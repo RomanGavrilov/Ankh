@@ -145,7 +145,9 @@ namespace ankh
         void flush(uint32_t frameIndex)
         {
             if (m_frames.empty())
+            {
                 return;
+            }
 
             frameIndex %= static_cast<uint32_t>(m_frames.size());
             auto &bucket = *m_frames[frameIndex];

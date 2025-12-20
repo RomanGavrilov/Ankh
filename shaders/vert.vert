@@ -37,8 +37,10 @@ void main() {
 
     gl_Position = frame.proj * frame.view * model * vec4(inPosition, 1.0);
 
-    // transform normal to world space (ignoring non-uniform scale)
-    mat3 normalMat = mat3(model);
+    // Transform normal to world space
+    // If you want performance:
+    // Precompute normal matrix CPU-side and store it in ObjectDataGPU
+    mat3 normalMat = transpose(inverse(mat3(model)));
     fragNormal = normalize(normalMat * inNormal);
 
     fragColor  = inColor;
