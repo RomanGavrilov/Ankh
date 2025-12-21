@@ -44,3 +44,11 @@ namespace ankh
             throw std::runtime_error(std::string("Vulkan error from ") + #expr);                   \
         }                                                                                          \
     } while (0)
+
+
+#define ANKH_THROW_MSG(msg)                                                                        \
+    do                                                                                             \
+    {                                                                                              \
+        ::ankh::log::error(std::string("Exception thrown: ") + (msg));                             \
+        throw std::runtime_error(msg);                                                             \
+    } while (0)

@@ -6,6 +6,7 @@ add_library(ankh_utils STATIC
     logging.cpp
     config.cpp
     gpu-resource-tracker.cpp
+    gpu-retirement-queue.cpp
 )
 
 target_include_directories(ankh_utils

@@ -29,7 +29,7 @@
 #include "pipeline/graphics-pipeline.hpp"
 #include "pipeline/pipeline-layout.hpp"
 
-#include "utils/deferred-deletion-queue.hpp"
+#include "utils/gpu-retirement-queue.hpp"
 #include "utils/gpu-tracking.hpp"
 #include "utils/types.hpp"
 
@@ -42,7 +42,8 @@
 
 #include "frame/frame-context.hpp"
 
-#include "sync/frame-sync.hpp"
+#include "sync/frame-ring.hpp"
+#include "sync/gpu-serial.hpp"
 
 #include "renderer/gpu-mesh-pool.hpp"
 #include "renderer/mesh-draw-info.hpp"
@@ -80,9 +81,9 @@ namespace ankh
 
         vkQueueWaitIdle(m_context->present_queue());
 
-        if (m_deletion_queue)
+        if (m_retirement_queue)
         {
-            m_deletion_queue->flush_all();
+            m_retirement_queue->flush_all();
         }
 
 #ifndef NDEBUG
@@ -96,8 +97,6 @@ namespace ankh
 
         // Context sets up instance, debug, surface, physical device, device
         m_context = std::make_unique<Context>(m_window->handle());
-
-        m_deletion_queue = std::make_unique<DeferredDeletionQueue>(ankh::config().framesInFlight);
 
         // Upload context: device + graphics queue family index
         m_upload_context =
@@ -191,7 +190,11 @@ namespace ankh
         create_texture();
         create_frames();
 
-        m_frame_sync = std::make_unique<FrameSync>(config().framesInFlight);
+        const auto framesInFlight{ankh::config().framesInFlight};
+
+        m_frame_ring = std::make_unique<FrameRing>(framesInFlight);
+        m_gpu_serial = std::make_unique<GpuSerial>(framesInFlight);
+        m_retirement_queue = std::make_unique<GpuRetirementQueue>();
     }
 
     void Renderer::create_framebuffers()
@@ -214,14 +217,18 @@ namespace ankh
     {
         VkDevice dev = m_context->device_handle();
 
-        for (auto &f : m_frames)
-        {
-            VkFence fence = f.in_flight_fence();
-            ANKH_VK_CHECK(vkWaitForFences(dev, 1, &fence, VK_TRUE, UINT64_MAX));
-        }
+        m_frame_ring->for_each_slot(
+            [this, dev](FrameSlot slot)
+            {
+                auto &frame = m_frames[slot];
+                VkFence fence = frame.in_flight_fence();
+                ANKH_VK_CHECK(vkWaitForFences(dev, 1, &fence, VK_TRUE, UINT64_MAX));
+            });
 
-        // Once all fences are complete, it is also legal to flush all deferred deletions:
-        m_deletion_queue->flush_all();
+        if (m_retirement_queue)
+        {
+            m_retirement_queue->flush_all();
+        }
     }
 
     void Renderer::retire_swapchain_resources()
@@ -231,54 +238,58 @@ namespace ankh
             return;
         }
 
-        const uint32_t cur = m_frame_sync->current();
-        const uint32_t delay = m_deletion_queue->frames_in_flight();
         VkDevice device = m_context->device_handle();
+
+        // threshold = last issued serial + framesInFlight
+        const uint64_t fif = static_cast<uint64_t>(ankh::config().framesInFlight);
+        const uint64_t retire_at = m_gpu_serial->last_issued() + fif;
 
         // 1) retire swapchain-owned resources
         auto retired = m_swapchain->retire_resources();
-        m_deletion_queue->enqueue_after(cur,
-                                        delay,
-                                        [device,
-                                         views = std::move(retired.imageViews),
-                                         fbs = std::move(retired.framebuffers),
-                                         depth = std::move(retired.depthImage)]() mutable
-                                        {
-                                            for (VkImageView v : views)
-                                                if (v)
-                                                    vkDestroyImageView(device, v, nullptr);
-                                        });
 
-        // 2) retire swapchain-dependent graph objects
+        m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
+                                         [device,
+                                          views = std::move(retired.imageViews),
+                                          fbs = std::move(retired.framebuffers),
+                                          depth = std::move(retired.depthImage)]() mutable
+                                         {
+                                             for (VkImageView v : views)
+                                             {
+                                                 if (v)
+                                                 {
+                                                     vkDestroyImageView(device, v, nullptr);
+                                                 }
+                                             }
+                                         });
+
         if (m_ui_pass)
         {
-            m_deletion_queue->enqueue_after(cur, delay, [p = std::move(m_ui_pass)]() mutable {});
+            m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
+                                             [p = std::move(m_ui_pass)]() mutable {});
         }
 
         if (m_draw_pass)
         {
-            m_deletion_queue->enqueue_after(cur, delay, [p = std::move(m_draw_pass)]() mutable {});
+            m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
+                                             [p = std::move(m_draw_pass)]() mutable {});
         }
 
         if (m_graphics_pipeline)
         {
-            m_deletion_queue->enqueue_after(cur,
-                                            delay,
-                                            [p = std::move(m_graphics_pipeline)]() mutable {});
+            m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
+                                             [p = std::move(m_graphics_pipeline)]() mutable {});
         }
 
         if (m_pipeline_layout)
         {
-            m_deletion_queue->enqueue_after(cur,
-                                            delay,
-                                            [p = std::move(m_pipeline_layout)]() mutable {});
+            m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
+                                             [p = std::move(m_pipeline_layout)]() mutable {});
         }
 
         if (m_render_pass)
         {
-            m_deletion_queue->enqueue_after(cur,
-                                            delay,
-                                            [p = std::move(m_render_pass)]() mutable {});
+            m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
+                                             [p = std::move(m_render_pass)]() mutable {});
         }
     }
 
@@ -573,14 +584,15 @@ namespace ankh
 
     void Renderer::draw_frame()
     {
-        const uint32_t current_frame_index = m_frame_sync->current();
+        const FrameSlot slot = m_frame_ring->current();
 
-        auto &frame = m_frames[current_frame_index];
+        auto &frame = m_frames[slot];
 
         VkFence fence = frame.in_flight_fence();
         ANKH_VK_CHECK(vkWaitForFences(m_context->device_handle(), 1, &fence, VK_TRUE, UINT64_MAX));
 
-        m_deletion_queue->flush(current_frame_index);
+        m_gpu_serial->mark_slot_completed(slot);
+        m_retirement_queue->collect(m_gpu_serial->completed(), 0);
 
         uint32_t image_index = 0;
         VkResult result = vkAcquireNextImageKHR(m_context->device_handle(),
@@ -624,6 +636,9 @@ namespace ankh
         submit.signalSemaphoreCount = 1;
         submit.pSignalSemaphores = &signalSem;
 
+        const GpuSerialValue serial = m_gpu_serial->issue();
+        m_gpu_serial->mark_slot_used(slot, serial);
+
         ANKH_VK_CHECK(vkQueueSubmit(m_context->graphics_queue(), 1, &submit, fence));
 
         VkPresentInfoKHR present{};
@@ -649,7 +664,7 @@ namespace ankh
             throw std::runtime_error("failed to present swapchain image");
         }
 
-        m_frame_sync->advance();
+        m_frame_ring->advance();
     }
 
     void Renderer::recreate_swapchain()

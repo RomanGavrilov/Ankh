@@ -11,8 +11,15 @@ namespace ankh
         explicit FrameSync(uint32_t frames);
         ~FrameSync();
 
-        uint32_t current() const { return m_current; }
-        void advance() { m_current = (m_current + 1) % m_frames; }
+        uint32_t current() const noexcept;
+        uint32_t frames_in_flight() const noexcept;
+        void advance() noexcept;
+
+        // Monotonic frame/epoch tracking
+
+        uint64_t next_frame_id() noexcept;
+        void mark_frame_used(uint32_t slot, uint64_t frame_id) noexcept;
+        void mark_frame_complete(uint32_t slot) noexcept;
 
       private:
         uint32_t m_frames{2};

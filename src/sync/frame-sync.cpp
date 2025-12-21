@@ -12,4 +12,19 @@ namespace ankh
 
     FrameSync::~FrameSync() = default;
 
+    uint32_t FrameSync::current() const noexcept
+    {
+        return m_current;
+    }
+
+    uint32_t FrameSync::frames_in_flight() const noexcept
+    {
+        return m_frames;
+    }
+
+    void FrameSync::advance() noexcept
+    {
+        m_current = (m_current + 1) % m_frames;
+    }
+
 } // namespace ankh

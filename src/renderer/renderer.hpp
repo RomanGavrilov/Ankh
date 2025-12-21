@@ -37,6 +37,9 @@ namespace ankh
     class Texture;
     class DeferredDeletionQueue;
     class GpuResourceTracker;
+    class FrameRing;
+    class GpuSerial;
+    class GpuRetirementQueue;
 
     class Renderer
     {
@@ -62,7 +65,7 @@ namespace ankh
         void cleanup_swapchain();
         void wait_for_all_frames();
         void retire_swapchain_resources();
-        GpuResourceTracker* tracker() const;
+        GpuResourceTracker *tracker() const;
 
       private:
         std::unique_ptr<Window> m_window;
@@ -80,11 +83,12 @@ namespace ankh
 
         std::unique_ptr<Texture> m_texture;
         std::vector<FrameContext> m_frames;
-        std::unique_ptr<FrameSync> m_frame_sync;
+
+        std::unique_ptr<FrameRing> m_frame_ring;
+        std::unique_ptr<GpuSerial> m_gpu_serial;
+        std::unique_ptr<GpuRetirementQueue> m_retirement_queue;
 
         std::unique_ptr<GpuMeshPool> m_gpu_mesh_pool;
-
-        std::unique_ptr<DeferredDeletionQueue> m_deletion_queue;
-    };
+     };
 
 } // namespace ankh
