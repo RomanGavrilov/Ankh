@@ -1,6 +1,7 @@
 #include "core/physical-device.hpp"
 #include <set>
 #include <stdexcept>
+#include <utils/logging.hpp>
 #include <vector>
 
 namespace ankh
@@ -80,10 +81,23 @@ namespace ankh
                 indices.presentFamily = i;
             }
 
+            // Some devices have a dedicated transfer queue, others do not
+            // Prefer a dedicated one if available
+            if (families[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
+            {
+                indices.transferFamily = i;
+            }
+
             if (indices.isComplete())
             {
                 break;
             }
+        }
+
+        if (!indices.transferFamily.has_value())
+        {
+            // Fallback to graphics queue if no dedicated transfer queue found
+            indices.transferFamily = indices.graphicsFamily;
         }
 
         return indices;
@@ -97,7 +111,7 @@ namespace ankh
 
         if (!deviceCount)
         {
-            throw std::runtime_error("failed to find GPUs with Vulkan support");
+            ANKH_THROW_MSG("failed to find GPUs with Vulkan support");
         }
 
         std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -130,7 +144,7 @@ namespace ankh
 
         if (!m_device)
         {
-            throw std::runtime_error("failed to find a suitable GPU");
+            ANKH_THROW_MSG("failed to find a suitable GPU");
         }
     }
 

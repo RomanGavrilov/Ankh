@@ -114,6 +114,11 @@ namespace ankh
         return m_device ? m_device->present_queue() : VK_NULL_HANDLE;
     }
 
+    VkQueue Context::transfer_queue() const
+    {
+        return m_device ? m_device->transfer_queue() : VK_NULL_HANDLE;
+    }
+
     QueueFamilyIndices Context::queues() const
     {
         return m_physical_device ? m_physical_device->queues() : QueueFamilyIndices{};

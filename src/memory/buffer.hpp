@@ -5,6 +5,7 @@
 
 namespace ankh
 {
+    // GPU-only device local buffer
     class Buffer
     {
       public:

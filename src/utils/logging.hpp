@@ -52,3 +52,14 @@ namespace ankh
         ::ankh::log::error(std::string("Exception thrown: ") + (msg));                             \
         throw std::runtime_error(msg);                                                             \
     } while (0)
+
+
+#define ANKH_ASSERT(cond)                                                                          \
+    do                                                                                             \
+    {                                                                                              \
+        if (!(cond))                                                                               \
+        {                                                                                          \
+            ::ankh::log::error(std::string("Assertion failed: ") + #cond);                         \
+            throw std::runtime_error(std::string("Assertion failed: ") + #cond);                   \
+        }                                                                                          \
+    } while (0)

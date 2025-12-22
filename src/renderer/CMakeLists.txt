@@ -21,6 +21,7 @@ target_link_libraries(ankh_renderer
         ankh_commands
         ankh_frame
         ankh_scene
+        ankh_streaming
 )
 
 target_include_directories(ankh_renderer

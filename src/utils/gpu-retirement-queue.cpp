@@ -43,7 +43,10 @@ namespace ankh
                 else
                 {
                     if (write != i)
+                    {
                         m_items[write] = std::move(m_items[i]);
+                    }
+
                     ++write;
                 }
             }

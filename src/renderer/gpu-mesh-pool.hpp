@@ -11,6 +11,7 @@
 #include "scene/mesh-pool.hpp"
 #include "scene/renderable.hpp" // MeshHandle
 #include "utils/types.hpp"
+#include "streaming/async-uploader.hpp"
 #include <vk_mem_alloc.h>
 
 namespace ankh
@@ -18,11 +19,11 @@ namespace ankh
     class GpuMeshPool
     {
       public:
-        GpuMeshPool(VmaAllocator allocator, VkDevice device, UploadContext &uploadContext);
+        GpuMeshPool(VmaAllocator allocator, VkDevice device, AsyncUploader &uploadContext);
 
         // Build unified buffers from all valid meshes in the MeshPool.
         // Call this after meshes are loaded.
-        void build_from_mesh_pool(const MeshPool &mesh_pool, VkQueue graphicsQueue);
+        void build_from_mesh_pool(const MeshPool &mesh_pool);
 
         VkBuffer vertex_buffer() const
         {
@@ -43,7 +44,7 @@ namespace ankh
         
         VkDevice m_device{VK_NULL_HANDLE};
         VmaAllocator m_allocator{VK_NULL_HANDLE};
-        UploadContext &m_upload_context;
+        AsyncUploader &m_async_uploader;
 
         std::unique_ptr<Buffer> m_vertex_buffer;
         std::unique_ptr<Buffer> m_index_buffer;

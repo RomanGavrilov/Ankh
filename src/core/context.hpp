@@ -52,6 +52,7 @@ namespace ankh
         VkDevice device_handle() const;
         VkSurfaceKHR surface_handle() const;
 
+        VkQueue transfer_queue() const;
         VkQueue graphics_queue() const;
         VkQueue present_queue() const;
 

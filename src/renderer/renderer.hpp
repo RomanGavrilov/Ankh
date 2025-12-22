@@ -28,7 +28,7 @@ namespace ankh
     class Framebuffer;
     class Buffer;
     class FrameContext;
-    class UploadContext;
+    class AsyncUploader;
     class DrawPass;
     class FrameSync;
     class UiPass;
@@ -76,7 +76,7 @@ namespace ankh
         std::unique_ptr<DescriptorPool> m_descriptor_pool;
         std::unique_ptr<PipelineLayout> m_pipeline_layout;
         std::unique_ptr<GraphicsPipeline> m_graphics_pipeline;
-        std::unique_ptr<UploadContext> m_upload_context;
+        std::unique_ptr<AsyncUploader> m_async_uploader;
         std::unique_ptr<DrawPass> m_draw_pass;
         std::unique_ptr<UiPass> m_ui_pass;
         std::unique_ptr<SceneRenderer> m_scene_renderer;

@@ -18,6 +18,7 @@ namespace ankh
         std::uint32_t maxObjects = 4096;
         uint32_t Width = 800;
         uint32_t Height = 600;
+        const uint32_t uploadContexts = 2; // number of async upload contexts
     };
 
     Config &config();

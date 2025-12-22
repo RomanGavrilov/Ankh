@@ -48,6 +48,8 @@
 #include "renderer/gpu-mesh-pool.hpp"
 #include "renderer/mesh-draw-info.hpp"
 
+#include "streaming/async-uploader.hpp"
+
 #include <chrono>
 #include <cstring>
 #include <memory>
@@ -98,11 +100,6 @@ namespace ankh
         // Context sets up instance, debug, surface, physical device, device
         m_context = std::make_unique<Context>(m_window->handle());
 
-        // Upload context: device + graphics queue family index
-        m_upload_context =
-            std::make_unique<UploadContext>(m_context->device_handle(),
-                                            m_context->queues().graphicsFamily.value());
-
         m_swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
                                                   m_context->device_handle(),
                                                   m_context->allocator().handle(),
@@ -136,6 +133,23 @@ namespace ankh
 
         m_scene_renderer = std::make_unique<SceneRenderer>();
 
+                const auto framesInFlight{ankh::config().framesInFlight};
+
+        m_frame_ring = std::make_unique<FrameRing>(framesInFlight);
+        m_gpu_serial = std::make_unique<GpuSerial>(framesInFlight);
+        m_retirement_queue = std::make_unique<GpuRetirementQueue>();
+
+        // Upload context: device + graphics queue family index
+        m_async_uploader =
+            std::make_unique<AsyncUploader>(m_context->device_handle(),
+                                            m_context->queues().transferFamily.value(),
+                                            m_context->transfer_queue());
+
+        m_gpu_mesh_pool = std::make_unique<GpuMeshPool>(m_context->allocator().handle(),
+                                                        m_context->device_handle(),
+                                                        *m_async_uploader);
+
+        // Load a model into the scene
         {
             // adjust path to where you actually put Box.gltf or Box.glb
             Model model =
@@ -177,24 +191,12 @@ namespace ankh
             }
         }
 
-        m_gpu_mesh_pool = std::make_unique<GpuMeshPool>(m_context->allocator().handle(),
-                                                        m_context->device_handle(),
-                                                        *m_upload_context);
-
-        // Build unified vertex/index buffers from all meshes in the MeshPool
-        m_gpu_mesh_pool->build_from_mesh_pool(m_scene_renderer->mesh_pool(),
-                                              m_context->graphics_queue());
+        m_gpu_mesh_pool->build_from_mesh_pool(m_scene_renderer->mesh_pool());
 
         create_framebuffers();
         create_descriptor_pool();
         create_texture();
         create_frames();
-
-        const auto framesInFlight{ankh::config().framesInFlight};
-
-        m_frame_ring = std::make_unique<FrameRing>(framesInFlight);
-        m_gpu_serial = std::make_unique<GpuSerial>(framesInFlight);
-        m_retirement_queue = std::make_unique<GpuRetirementQueue>();
     }
 
     void Renderer::create_framebuffers()
@@ -310,7 +312,9 @@ namespace ankh
         for (const auto &r : renderables)
         {
             if (!materials.valid(r.material))
+            {
                 continue;
+            }
 
             const Material &mat = materials.get(r.material);
             if (mat.has_base_color_image())
@@ -410,25 +414,39 @@ namespace ankh
                                       VK_IMAGE_ASPECT_COLOR_BIT);
 
         // Upload via UploadContext
-        VkQueue graphicsQueue = m_context->graphics_queue();
+        m_async_uploader->begin();
 
-        m_upload_context->transition_image_layout(graphicsQueue,
-                                                  m_texture->image(),
+        // UNDEFINED -> TRANSFER_DST
+        m_async_uploader->transition_image_layout(m_texture->image(), // VkImage
                                                   VK_IMAGE_ASPECT_COLOR_BIT,
                                                   VK_IMAGE_LAYOUT_UNDEFINED,
-                                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+                                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                  /*baseMip*/ 0,
+                                                  /*levelCount*/ 1,
+                                                  /*baseLayer*/ 0,
+                                                  /*layerCount*/ 1);
 
-        m_upload_context->copy_buffer_to_image(graphicsQueue,
-                                               staging.handle(),
+        // copy staging -> image
+        m_async_uploader->copy_buffer_to_image(staging.handle(),
                                                m_texture->image(),
-                                               texWidth,
-                                               texHeight);
+                                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                               static_cast<uint32_t>(m_texture->width()),
+                                               static_cast<uint32_t>(m_texture->height()));
 
-        m_upload_context->transition_image_layout(graphicsQueue,
-                                                  m_texture->image(),
+        // TRANSFER_DST -> SHADER_READ
+        m_async_uploader->transition_image_layout(m_texture->image(),
                                                   VK_IMAGE_ASPECT_COLOR_BIT,
                                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                                  0,
+                                                  1,
+                                                  0,
+                                                  1);
+
+        UploadTicket t = m_async_uploader->end_and_submit();
+
+        m_retirement_queue->retire_after(GpuSignal::timeline(t.value),
+                                         [st = std::move(staging)]() mutable {});
     }
 
     void Renderer::create_frames()
@@ -592,7 +610,13 @@ namespace ankh
         ANKH_VK_CHECK(vkWaitForFences(m_context->device_handle(), 1, &fence, VK_TRUE, UINT64_MAX));
 
         m_gpu_serial->mark_slot_completed(slot);
-        m_retirement_queue->collect(m_gpu_serial->completed(), 0);
+
+        const uint64_t completedFrame = m_gpu_serial->completed();
+
+        const uint64_t completedTimeline =
+            m_async_uploader ? m_async_uploader->completed_value() : 0;
+
+        m_retirement_queue->collect(completedFrame, completedTimeline);
 
         uint32_t image_index = 0;
         VkResult result = vkAcquireNextImageKHR(m_context->device_handle(),

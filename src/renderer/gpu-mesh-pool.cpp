@@ -1,5 +1,6 @@
 // src/renderer/gpu-mesh-pool.cpp
 #include "renderer/gpu-mesh-pool.hpp"
+#include "streaming/async-uploader.hpp"
 
 #include <cstring>
 #include <utils/logging.hpp>
@@ -7,14 +8,14 @@
 namespace ankh
 {
 
-    GpuMeshPool::GpuMeshPool(VmaAllocator allocator, VkDevice device, UploadContext &uploadContext)
-        : m_allocator(allocator)
-        , m_device(device)
-        , m_upload_context(uploadContext)
+    GpuMeshPool::GpuMeshPool(VmaAllocator allocator, VkDevice device, AsyncUploader &uploadContext)
+        : m_allocator{allocator}
+        , m_device{device}
+        , m_async_uploader{uploadContext}
     {
     }
 
-    void GpuMeshPool::build_from_mesh_pool(const MeshPool &mesh_pool, VkQueue graphicsQueue)
+    void GpuMeshPool::build_from_mesh_pool(const MeshPool &mesh_pool)
     {
         std::vector<Vertex> allVertices;
         std::vector<uint16_t> allIndices;
@@ -77,11 +78,6 @@ namespace ankh
                                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                                    VMA_MEMORY_USAGE_GPU_ONLY);
 
-        m_upload_context.copy_buffer(graphicsQueue,
-                                     vertexStaging.handle(),
-                                     m_vertex_buffer->handle(),
-                                     vertexBufferSize);
-
         // -----------------------------
         // Index upload (staging -> GPU)
         // -----------------------------
@@ -104,10 +100,17 @@ namespace ankh
                                                       VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                                   VMA_MEMORY_USAGE_GPU_ONLY);
 
-        m_upload_context.copy_buffer(graphicsQueue,
-                                     indexStaging.handle(),
+        m_async_uploader.begin();
+
+        m_async_uploader.copy_buffer(vertexStaging.handle(),
+                                     m_vertex_buffer->handle(),
+                                     vertexBufferSize);
+
+        m_async_uploader.copy_buffer(indexStaging.handle(),
                                      m_index_buffer->handle(),
                                      indexBufferSize);
+
+        UploadTicket ticket = m_async_uploader.end_and_submit();
 
         ANKH_LOG_DEBUG("[GpuMeshPool] Uploaded " + std::to_string(allVertices.size()) +
                        " vertices, " + std::to_string(allIndices.size()) + " indices, " +
