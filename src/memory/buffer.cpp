@@ -10,9 +10,13 @@ namespace ankh
                    VkBufferUsageFlags usage,
                    VmaMemoryUsage memoryUsage,
                    VmaAllocationCreateFlags allocFlags)
-        : m_allocator(allocator)
-        , m_device(device)
-        , m_size(size)
+        : m_device{device}
+        , m_allocator{allocator}
+        , m_buffer{VK_NULL_HANDLE}
+        , m_allocation{VK_NULL_HANDLE}
+        , m_size{size}
+        , m_mapped{nullptr}
+
     {
         VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
         bi.size = size;
@@ -32,8 +36,19 @@ namespace ankh
     }
 
     Buffer::Buffer(Buffer &&other) noexcept
+        : m_device{other.m_device}
+        , m_allocator{other.m_allocator}
+        , m_buffer{other.m_buffer}
+        , m_allocation{other.m_allocation}
+        , m_size{other.m_size}
+        , m_mapped{other.m_mapped}
     {
-        *this = std::move(other);
+        other.m_device = VK_NULL_HANDLE;
+        other.m_allocator = VK_NULL_HANDLE;
+        other.m_buffer = VK_NULL_HANDLE;
+        other.m_allocation = VK_NULL_HANDLE;
+        other.m_size = 0;
+        other.m_mapped = nullptr;
     }
 
     Buffer &Buffer::operator=(Buffer &&other) noexcept
@@ -60,6 +75,21 @@ namespace ankh
         other.m_mapped = nullptr;
 
         return *this;
+    }
+
+    VkBuffer Buffer::handle() const
+    {
+        return m_buffer;
+    }
+
+    VkDevice Buffer::device() const
+    {
+        return m_device;
+    }
+
+    VkDeviceSize Buffer::size() const
+    {
+        return m_size;
     }
 
     void Buffer::destroy()
