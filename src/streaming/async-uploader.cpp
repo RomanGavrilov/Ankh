@@ -101,6 +101,17 @@ namespace ankh
 
     AsyncUploader::~AsyncUploader()
     {
+        // Wait for all in-flight operations to complete before destroying resources
+        const uint64_t lastSignal = m_nextSignal;
+        if (m_timeline && lastSignal > 0)
+        {
+            VkSemaphoreWaitInfo wi{VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO};
+            wi.semaphoreCount = 1;
+            wi.pSemaphores = &m_timeline;
+            wi.pValues = &lastSignal;
+            ANKH_VK_CHECK(vkWaitSemaphores(m_device, &wi, UINT64_MAX));
+        }
+
         if (m_timeline)
         {
             vkDestroySemaphore(m_device, m_timeline, nullptr);
