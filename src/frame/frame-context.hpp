@@ -11,6 +11,8 @@ namespace ankh
     class CommandPool;
     class CommandBuffer;
     class Buffer;
+    class GpuRetirementQueue;
+    class GpuSignal;
 
     class FrameContext
     {
@@ -24,7 +26,8 @@ namespace ankh
                      VkDeviceSize objectBufferSize,
                      VkDescriptorSet descriptorSet,
                      VkImageView textureView,
-                     VkSampler textureSampler);
+                     VkSampler textureSampler,
+                     GpuRetirementQueue *retirement);
 
         ~FrameContext();
 
@@ -72,9 +75,9 @@ namespace ankh
             return m_object_capacity;
         }
 
-        // manage command buffer lifecycle for this frame
-        VkCommandBuffer begin(); // reset + vkBeginCommandBuffer
-        void end();              // vkEndCommandBuffer
+        // Frame lifecycle
+        VkCommandBuffer begin(GpuSignal signal);
+        void end();
 
       private:
         VkDevice m_device{VK_NULL_HANDLE};
@@ -95,6 +98,8 @@ namespace ankh
         VkFence m_in_flight{VK_NULL_HANDLE};
 
         uint32_t m_object_capacity{0};
+
+        GpuRetirementQueue *m_retirement{nullptr};
     };
 
 } // namespace ankh

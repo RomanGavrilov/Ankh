@@ -5,6 +5,7 @@
 #include "commands/command-pool.hpp"
 #include "descriptors/descriptor-writer.hpp"
 #include "memory/buffer.hpp"
+#include "utils/gpu-retirement-queue.hpp"
 
 #include <stdexcept>
 #include <utils/logging.hpp>
@@ -19,9 +20,11 @@ namespace ankh
                                VkDeviceSize objectBufferSize,
                                VkDescriptorSet descriptorSet,
                                VkImageView textureView,
-                               VkSampler textureSampler)
-        : m_device(device)
-        , m_descriptor_set(descriptorSet)
+                               VkSampler textureSampler,
+                               GpuRetirementQueue *retirement)
+        : m_device{device}
+        , m_descriptor_set{descriptorSet}
+        , m_retirement{retirement}
     {
         // Command pool & buffer
         m_pool = std::make_unique<CommandPool>(m_device, graphicsQueueFamilyIndex);
@@ -33,7 +36,9 @@ namespace ankh
                                                     device,
                                                     uniformBufferSize,
                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                    VMA_MEMORY_USAGE_CPU_TO_GPU,
+                                                    retirement,
+                                                    GpuSignal{});
 
         m_uniform_mapped = m_uniform_buffer->map();
 
@@ -42,7 +47,10 @@ namespace ankh
                                                    m_device,
                                                    objectBufferSize,
                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                   VMA_MEMORY_USAGE_CPU_TO_GPU,
+                                                   retirement,
+                                                   GpuSignal{},
+                                                   VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
         m_object_mapped = m_object_buffer->map();
 
@@ -68,7 +76,6 @@ namespace ankh
                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                          /*binding*/ 2);
 
-        // Sync primitives...
         VkSemaphoreCreateInfo semInfo{};
         semInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -144,10 +151,16 @@ namespace ankh
         return m_cmd ? m_cmd->handle() : VK_NULL_HANDLE;
     }
 
-    VkCommandBuffer FrameContext::begin()
+    VkCommandBuffer FrameContext::begin(GpuSignal signal)
     {
+        if (m_retirement)
+        {
+            m_uniform_buffer->set_retirement(m_retirement, signal);
+            m_object_buffer->set_retirement(m_retirement, signal);
+        }
+
         m_cmd->reset();
-        m_cmd->begin();
+        m_cmd->begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
         return m_cmd->handle();
     }
 

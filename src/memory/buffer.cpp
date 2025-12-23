@@ -4,30 +4,64 @@
 
 namespace ankh
 {
+    namespace
+    {
+        static void create_buffer(VmaAllocator allocator,
+                                  VkDeviceSize size,
+                                  VkBufferUsageFlags usage,
+                                  VmaMemoryUsage memoryUsage,
+                                  VmaAllocationCreateFlags allocFlags,
+                                  VkBuffer &outBuffer,
+                                  VmaAllocation &outAllocation)
+        {
+            VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+            bufferInfo.size = size;
+            bufferInfo.usage = usage;
+            bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+            VmaAllocationCreateInfo allocInfo{};
+            allocInfo.usage = memoryUsage;
+            allocInfo.flags = allocFlags;
+
+            ANKH_VK_CHECK(vmaCreateBuffer(allocator,
+                                          &bufferInfo,
+                                          &allocInfo,
+                                          &outBuffer,
+                                          &outAllocation,
+                                          nullptr));
+        }
+    } // namespace
+
     Buffer::Buffer(VmaAllocator allocator,
                    VkDevice device,
                    VkDeviceSize size,
                    VkBufferUsageFlags usage,
                    VmaMemoryUsage memoryUsage,
                    VmaAllocationCreateFlags allocFlags)
-        : m_device{device}
-        , m_allocator{allocator}
-        , m_buffer{VK_NULL_HANDLE}
-        , m_allocation{VK_NULL_HANDLE}
-        , m_size{size}
-        , m_mapped{nullptr}
-
+        : m_device(device)
+        , m_allocator(allocator)
+        , m_size(size)
+        , m_retirement(nullptr)
+        , m_signal{}
     {
-        VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-        bi.size = size;
-        bi.usage = usage;
-        bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        create_buffer(m_allocator, m_size, usage, memoryUsage, allocFlags, m_buffer, m_allocation);
+    }
 
-        VmaAllocationCreateInfo ai{};
-        ai.usage = memoryUsage;
-        ai.flags = allocFlags;
-
-        ANKH_VK_CHECK(vmaCreateBuffer(m_allocator, &bi, &ai, &m_buffer, &m_allocation, nullptr));
+    Buffer::Buffer(VmaAllocator allocator,
+                   VkDevice device,
+                   VkDeviceSize size,
+                   VkBufferUsageFlags usage,
+                   VmaMemoryUsage memoryUsage,
+                   GpuRetirementQueue *retirement,
+                   GpuSignal signal,
+                   VmaAllocationCreateFlags allocFlags)
+        : m_device(device)
+        , m_allocator(allocator)
+        , m_size(size)
+        , m_retirement(retirement)
+        , m_signal(signal)
+    {
+        create_buffer(m_allocator, m_size, usage, memoryUsage, allocFlags, m_buffer, m_allocation);
     }
 
     Buffer::~Buffer()
@@ -36,19 +70,15 @@ namespace ankh
     }
 
     Buffer::Buffer(Buffer &&other) noexcept
-        : m_device{other.m_device}
-        , m_allocator{other.m_allocator}
-        , m_buffer{other.m_buffer}
-        , m_allocation{other.m_allocation}
-        , m_size{other.m_size}
-        , m_mapped{other.m_mapped}
+        : m_device(std::exchange(other.m_device, VK_NULL_HANDLE))
+        , m_allocator(std::exchange(other.m_allocator, VK_NULL_HANDLE))
+        , m_buffer(std::exchange(other.m_buffer, VK_NULL_HANDLE))
+        , m_allocation(std::exchange(other.m_allocation, VK_NULL_HANDLE))
+        , m_size(std::exchange(other.m_size, 0))
+        , m_mapped(std::exchange(other.m_mapped, nullptr))
+        , m_retirement(std::exchange(other.m_retirement, nullptr))
+        , m_signal(std::exchange(other.m_signal, GpuSignal{}))
     {
-        other.m_device = VK_NULL_HANDLE;
-        other.m_allocator = VK_NULL_HANDLE;
-        other.m_buffer = VK_NULL_HANDLE;
-        other.m_allocation = VK_NULL_HANDLE;
-        other.m_size = 0;
-        other.m_mapped = nullptr;
     }
 
     Buffer &Buffer::operator=(Buffer &&other) noexcept
@@ -60,19 +90,14 @@ namespace ankh
 
         destroy();
 
-        m_allocator = other.m_allocator;
-        m_device = other.m_device;
-        m_buffer = other.m_buffer;
-        m_allocation = other.m_allocation;
-        m_size = other.m_size;
-        m_mapped = other.m_mapped;
-
-        other.m_allocator = VK_NULL_HANDLE;
-        other.m_device = VK_NULL_HANDLE;
-        other.m_buffer = VK_NULL_HANDLE;
-        other.m_allocation = VK_NULL_HANDLE;
-        other.m_size = 0;
-        other.m_mapped = nullptr;
+        m_device = std::exchange(other.m_device, VK_NULL_HANDLE);
+        m_allocator = std::exchange(other.m_allocator, VK_NULL_HANDLE);
+        m_buffer = std::exchange(other.m_buffer, VK_NULL_HANDLE);
+        m_allocation = std::exchange(other.m_allocation, VK_NULL_HANDLE);
+        m_size = std::exchange(other.m_size, 0);
+        m_mapped = std::exchange(other.m_mapped, nullptr);
+        m_retirement = std::exchange(other.m_retirement, nullptr);
+        m_signal = std::exchange(other.m_signal, GpuSignal{});
 
         return *this;
     }
@@ -94,30 +119,57 @@ namespace ankh
 
     void Buffer::destroy()
     {
-        if (m_mapped && m_allocator && m_allocation)
+        if (!m_buffer)
         {
-            vmaUnmapMemory(m_allocator, m_allocation);
-            m_mapped = nullptr;
+            return;
         }
 
-        if (m_allocator && m_buffer && m_allocation)
+        if (m_retirement && m_signal.value != 0)
         {
-            vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
-            m_buffer = VK_NULL_HANDLE;
-            m_allocation = VK_NULL_HANDLE;
+            auto buffer = m_buffer;
+            auto allocation = m_allocation;
+            auto allocator = m_allocator;
+            auto mapped = m_mapped;
+
+            m_retirement->retire_after(m_signal,
+                                       [allocator, buffer, allocation, mapped]() mutable
+                                       {
+                                           if (mapped)
+                                           {
+                                               vmaUnmapMemory(allocator, allocation);
+                                           }
+                                           vmaDestroyBuffer(allocator, buffer, allocation);
+                                       });
         }
+        else
+        {
+            if (m_mapped)
+            {
+                vmaUnmapMemory(m_allocator, m_allocation);
+            }
+
+            vmaDestroyBuffer(m_allocator, m_buffer, m_allocation);
+        }
+
+        m_buffer = VK_NULL_HANDLE;
+        m_allocation = VK_NULL_HANDLE;
+        m_mapped = nullptr;
     }
 
     void *Buffer::map()
     {
+        ANKH_ASSERT(m_buffer != VK_NULL_HANDLE);
+        ANKH_ASSERT(m_allocator != VK_NULL_HANDLE);
+        ANKH_ASSERT(m_allocation != VK_NULL_HANDLE);
+
         if (m_mapped)
         {
             return m_mapped;
         }
 
         void *ptr = nullptr;
-
         ANKH_VK_CHECK(vmaMapMemory(m_allocator, m_allocation, &ptr));
+        ANKH_ASSERT(ptr != nullptr);
 
         m_mapped = ptr;
         return m_mapped;

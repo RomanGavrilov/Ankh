@@ -40,6 +40,7 @@ namespace ankh
     class FrameRing;
     class GpuSerial;
     class GpuRetirementQueue;
+    class GpuSignal;
 
     class Renderer
     {
@@ -57,7 +58,7 @@ namespace ankh
         void create_texture();
         void create_frames();
 
-        void record_command_buffer(FrameContext &frame, uint32_t image_index);
+        void record_command_buffer(FrameContext &frame, uint32_t image_index, GpuSignal signal);
         void update_uniform_buffer(FrameContext &frame);
 
         void draw_frame();
