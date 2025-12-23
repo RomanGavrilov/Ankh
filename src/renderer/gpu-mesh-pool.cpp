@@ -55,7 +55,8 @@ namespace ankh
         VkDeviceSize vertexBufferSize = sizeof(Vertex) * allVertices.size();
         VkDeviceSize indexBufferSize = sizeof(uint16_t) * allIndices.size();
 
-        // --- Vertex staging + device-local buffer ---
+        // -----------------------------
+        // Vertex staging + device-local buffer
         // -----------------------------
         // Vertex upload (staging -> GPU)
         // -----------------------------

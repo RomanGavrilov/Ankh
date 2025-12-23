@@ -83,6 +83,10 @@ namespace ankh
 
         vkQueueWaitIdle(m_context->present_queue());
 
+        m_retirement_queue->collect(m_gpu_serial ? m_gpu_serial->last_issued() : UINT64_MAX,
+                                    m_async_uploader ? m_async_uploader->completed_value()
+                                                     : UINT64_MAX);
+
         if (m_retirement_queue)
         {
             m_retirement_queue->flush_all();
@@ -133,7 +137,7 @@ namespace ankh
 
         m_scene_renderer = std::make_unique<SceneRenderer>();
 
-                const auto framesInFlight{ankh::config().framesInFlight};
+        const auto framesInFlight{ankh::config().framesInFlight};
 
         m_frame_ring = std::make_unique<FrameRing>(framesInFlight);
         m_gpu_serial = std::make_unique<GpuSerial>(framesInFlight);
@@ -483,13 +487,16 @@ namespace ankh
                                   objectSize,
                                   sets[i],
                                   m_texture->view(),
-                                  m_texture->sampler());
+                                  m_texture->sampler(),
+                                  m_retirement_queue.get());
         }
     }
 
-    void Renderer::record_command_buffer(FrameContext &frame, uint32_t image_index)
+    void
+    Renderer::record_command_buffer(FrameContext &frame, uint32_t image_index, GpuSignal signal)
     {
-        VkCommandBuffer cmd = frame.begin();
+
+        VkCommandBuffer cmd = frame.begin(signal);
 
         // --- Begin render pass ---
         VkRenderPassBeginInfo rp_info{};
@@ -611,6 +618,8 @@ namespace ankh
 
         m_gpu_serial->mark_slot_completed(slot);
 
+        m_retirement_queue->collect(m_gpu_serial->completed(), m_async_uploader->completed_value());
+
         const uint64_t completedFrame = m_gpu_serial->completed();
 
         const uint64_t completedTimeline =
@@ -641,7 +650,9 @@ namespace ankh
 
         ANKH_VK_CHECK(vkResetFences(m_context->device_handle(), 1, &fence));
 
-        record_command_buffer(frame, image_index);
+        const GpuSerialValue frameId = m_gpu_serial->issue();
+
+        record_command_buffer(frame, image_index, GpuSignal::frame(frameId));
 
         VkCommandBuffer cmd = frame.command_buffer();
 
@@ -660,8 +671,7 @@ namespace ankh
         submit.signalSemaphoreCount = 1;
         submit.pSignalSemaphores = &signalSem;
 
-        const GpuSerialValue serial = m_gpu_serial->issue();
-        m_gpu_serial->mark_slot_used(slot, serial);
+        m_gpu_serial->mark_slot_used(slot, frameId);
 
         ANKH_VK_CHECK(vkQueueSubmit(m_context->graphics_queue(), 1, &submit, fence));
 
