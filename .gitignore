@@ -54,3 +54,4 @@ __pycache__/
 
 # Python virtual environment
 .venv/
+_codeql_detected_source_root
