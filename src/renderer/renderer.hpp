@@ -92,16 +92,16 @@ namespace ankh
         GpuResourceTracker *tracker() const;
 
       private:
-        std::unique_ptr<Window> m_window;
+        // Context owns VMA allocator (destroyed last, so declared first)
+        std::unique_ptr<Context> m_context;
         
-        // GPU state that may enqueue retirements (destroyed first in shutdown)
-        std::unique_ptr<RendererGpuState> m_gpu;
-        
-        // Retirement queue (flushed after m_gpu is destroyed)
+        // Retirement queue (flushed after m_gpu is destroyed, destroyed second-to-last)
         std::unique_ptr<GpuRetirementQueue> m_retirement_queue;
         
-        // Context owns VMA allocator (destroyed last)
-        std::unique_ptr<Context> m_context;
+        // GPU state that may enqueue retirements (destroyed in shutdown via explicit reset)
+        std::unique_ptr<RendererGpuState> m_gpu;
+        
+        std::unique_ptr<Window> m_window;
     };
 
 } // namespace ankh
