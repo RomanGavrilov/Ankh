@@ -86,10 +86,10 @@ namespace ankh
         vkQueueWaitIdle(m_context->graphics_queue());
         vkQueueWaitIdle(m_context->transfer_queue());
 
-        // ✅ one reset kills everything that may enqueue retirements
+        // Phase 1: Destroy all GPU resources that may enqueue retirements
         m_gpu.reset();
 
-        // ✅ now flush retirements produced by those destructors
+        // Phase 2: Flush all retirements produced by those destructors
         if (m_retirement_queue)
         {
             m_retirement_queue->collect(UINT64_MAX, UINT64_MAX);
