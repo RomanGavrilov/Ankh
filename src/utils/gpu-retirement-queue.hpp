@@ -15,8 +15,10 @@ namespace ankh
 
         void retire_after(GpuSignal signal, Fn fn);
 
+        // Collect and execute all functions whose signals have been reached
         void collect(uint64_t completedFrameIndex, uint64_t completedTimelineValue);
-
+        
+        // Flush all remaining functions immediately
         void flush_all();
 
       private:

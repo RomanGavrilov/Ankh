@@ -19,6 +19,9 @@ namespace ankh
         uint32_t Width = 800;
         uint32_t Height = 600;
         const uint32_t uploadContexts = 2; // number of async upload contexts
+        
+        // 16ms in nanoseconds:
+        const uint64_t acquireImageTimeoutNs = 16ull * 1000ull * 1000ull;
     };
 
     Config &config();
