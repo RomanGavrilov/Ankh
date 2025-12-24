@@ -82,13 +82,30 @@ namespace ankh
         wait_for_all_frames();
 
         vkQueueWaitIdle(m_context->present_queue());
+        vkQueueWaitIdle(m_context->graphics_queue());
+        vkQueueWaitIdle(m_context->transfer_queue());
 
-        m_retirement_queue->collect(m_gpu_serial ? m_gpu_serial->last_issued() : UINT64_MAX,
-                                    m_async_uploader ? m_async_uploader->completed_value()
-                                                     : UINT64_MAX);
+        m_frames.clear();
+        m_texture.reset();
+        m_gpu_mesh_pool.reset();
+        m_ui_pass.reset();
+        m_draw_pass.reset();
+        m_graphics_pipeline.reset();
+        m_pipeline_layout.reset();
+        m_render_pass.reset();
+        m_swapchain.reset();
+        m_async_uploader.reset();
+        m_descriptor_pool.reset();
+        m_descriptor_set_layout.reset();
+        m_scene_renderer.reset();
+        m_frame_ring.reset();
+        m_gpu_serial.reset();
 
         if (m_retirement_queue)
         {
+            m_retirement_queue->collect(m_gpu_serial ? m_gpu_serial->last_issued() : UINT64_MAX,
+                                        m_async_uploader ? m_async_uploader->completed_value()
+                                                         : UINT64_MAX);
             m_retirement_queue->flush_all();
         }
 
@@ -230,11 +247,6 @@ namespace ankh
                 VkFence fence = frame.in_flight_fence();
                 ANKH_VK_CHECK(vkWaitForFences(dev, 1, &fence, VK_TRUE, UINT64_MAX));
             });
-
-        if (m_retirement_queue)
-        {
-            m_retirement_queue->flush_all();
-        }
     }
 
     void Renderer::retire_swapchain_resources()
@@ -620,20 +632,19 @@ namespace ankh
 
         m_retirement_queue->collect(m_gpu_serial->completed(), m_async_uploader->completed_value());
 
-        const uint64_t completedFrame = m_gpu_serial->completed();
-
-        const uint64_t completedTimeline =
-            m_async_uploader ? m_async_uploader->completed_value() : 0;
-
-        m_retirement_queue->collect(completedFrame, completedTimeline);
-
         uint32_t image_index = 0;
         VkResult result = vkAcquireNextImageKHR(m_context->device_handle(),
                                                 m_swapchain->handle(),
-                                                UINT64_MAX,
+                                                ankh::config().acquireImageTimeoutNs,
                                                 frame.image_available(),
                                                 VK_NULL_HANDLE,
                                                 &image_index);
+
+        if (result == VK_TIMEOUT)
+        {
+            ANKH_LOG_WARN("[Renderer] Timed out while acquiring swapchain image; skipping frame");
+            return;
+        }
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR)
         {
@@ -641,6 +652,7 @@ namespace ankh
             recreate_swapchain();
             return;
         }
+
         else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
         {
             throw std::runtime_error("failed to acquire swapchain image");

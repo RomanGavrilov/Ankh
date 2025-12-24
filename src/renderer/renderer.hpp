@@ -69,6 +69,8 @@ namespace ankh
         GpuResourceTracker *tracker() const;
 
       private:
+        std::unique_ptr<GpuRetirementQueue> m_retirement_queue;
+
         std::unique_ptr<Window> m_window;
         std::unique_ptr<Context> m_context;
         std::unique_ptr<Swapchain> m_swapchain;
@@ -83,13 +85,13 @@ namespace ankh
         std::unique_ptr<SceneRenderer> m_scene_renderer;
 
         std::unique_ptr<Texture> m_texture;
-        std::vector<FrameContext> m_frames;
 
         std::unique_ptr<FrameRing> m_frame_ring;
         std::unique_ptr<GpuSerial> m_gpu_serial;
-        std::unique_ptr<GpuRetirementQueue> m_retirement_queue;
+
+        std::vector<FrameContext> m_frames;
 
         std::unique_ptr<GpuMeshPool> m_gpu_mesh_pool;
-     };
+    };
 
 } // namespace ankh
