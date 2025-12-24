@@ -86,10 +86,8 @@ namespace ankh
         vkQueueWaitIdle(m_context->graphics_queue());
         vkQueueWaitIdle(m_context->transfer_queue());
 
-        // Phase 1: Destroy all GPU resources that may enqueue retirements
         m_gpu.reset();
 
-        // Phase 2: Flush all retirements produced by those destructors
         if (m_retirement_queue)
         {
             m_retirement_queue->collect(UINT64_MAX, UINT64_MAX);
@@ -109,35 +107,38 @@ namespace ankh
         m_context = std::make_unique<Context>(m_window->handle());
 
         m_gpu->swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
-                                                  m_context->device_handle(),
-                                                  m_context->allocator().handle(),
-                                                  m_context->surface_handle(),
-                                                  m_window->handle(),
-                                                  tracker());
+                                                       m_context->device_handle(),
+                                                       m_context->allocator().handle(),
+                                                       m_context->surface_handle(),
+                                                       m_window->handle(),
+                                                       tracker());
 
-        m_gpu->render_pass =
-            std::make_unique<RenderPass>(m_context->device_handle(), m_gpu->swapchain->image_format());
+        m_gpu->render_pass = std::make_unique<RenderPass>(m_context->device_handle(),
+                                                          m_gpu->swapchain->image_format());
 
-        m_gpu->descriptor_set_layout = std::make_unique<DescriptorSetLayout>(m_context->device_handle());
+        m_gpu->descriptor_set_layout =
+            std::make_unique<DescriptorSetLayout>(m_context->device_handle());
 
-        m_gpu->pipeline_layout = std::make_unique<PipelineLayout>(m_context->device_handle(),
-                                                             m_gpu->descriptor_set_layout->handle());
+        m_gpu->pipeline_layout =
+            std::make_unique<PipelineLayout>(m_context->device_handle(),
+                                             m_gpu->descriptor_set_layout->handle());
 
-        m_gpu->graphics_pipeline = std::make_unique<GraphicsPipeline>(m_context->device_handle(),
-                                                                 m_gpu->render_pass->handle(),
-                                                                 m_gpu->pipeline_layout->handle());
+        m_gpu->graphics_pipeline =
+            std::make_unique<GraphicsPipeline>(m_context->device_handle(),
+                                               m_gpu->render_pass->handle(),
+                                               m_gpu->pipeline_layout->handle());
 
         m_gpu->draw_pass = std::make_unique<DrawPass>(m_context->device_handle(),
-                                                 *m_gpu->swapchain,
-                                                 *m_gpu->render_pass,
-                                                 *m_gpu->graphics_pipeline,
-                                                 *m_gpu->pipeline_layout);
+                                                      *m_gpu->swapchain,
+                                                      *m_gpu->render_pass,
+                                                      *m_gpu->graphics_pipeline,
+                                                      *m_gpu->pipeline_layout);
 
         m_gpu->ui_pass = std::make_unique<UiPass>(m_context->device_handle(),
-                                             *m_gpu->swapchain,
-                                             *m_gpu->render_pass,
-                                             *m_gpu->graphics_pipeline,
-                                             *m_gpu->pipeline_layout);
+                                                  *m_gpu->swapchain,
+                                                  *m_gpu->render_pass,
+                                                  *m_gpu->graphics_pipeline,
+                                                  *m_gpu->pipeline_layout);
 
         m_gpu->scene_renderer = std::make_unique<SceneRenderer>();
 
@@ -154,8 +155,8 @@ namespace ankh
                                             m_context->transfer_queue());
 
         m_gpu->gpu_mesh_pool = std::make_unique<GpuMeshPool>(m_context->allocator().handle(),
-                                                        m_context->device_handle(),
-                                                        *m_gpu->async_uploader);
+                                                             m_context->device_handle(),
+                                                             *m_gpu->async_uploader);
 
         // Load a model into the scene
         {
@@ -281,8 +282,9 @@ namespace ankh
 
         if (m_gpu->graphics_pipeline)
         {
-            m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
-                                             [p = std::move(m_gpu->graphics_pipeline)]() mutable {});
+            m_retirement_queue->retire_after(
+                GpuSignal::frame(retire_at),
+                [p = std::move(m_gpu->graphics_pipeline)]() mutable {});
         }
 
         if (m_gpu->pipeline_layout)
@@ -301,7 +303,7 @@ namespace ankh
     void Renderer::create_descriptor_pool()
     {
         m_gpu->descriptor_pool = std::make_unique<DescriptorPool>(m_context->device_handle(),
-                                                             ankh::config().framesInFlight);
+                                                                  ankh::config().framesInFlight);
     }
 
     void Renderer::create_texture()
@@ -421,30 +423,31 @@ namespace ankh
 
         // UNDEFINED -> TRANSFER_DST
         m_gpu->async_uploader->transition_image_layout(m_gpu->texture->image(), // VkImage
-                                                  VK_IMAGE_ASPECT_COLOR_BIT,
-                                                  VK_IMAGE_LAYOUT_UNDEFINED,
-                                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                                  /*baseMip*/ 0,
-                                                  /*levelCount*/ 1,
-                                                  /*baseLayer*/ 0,
-                                                  /*layerCount*/ 1);
+                                                       VK_IMAGE_ASPECT_COLOR_BIT,
+                                                       VK_IMAGE_LAYOUT_UNDEFINED,
+                                                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                       /*baseMip*/ 0,
+                                                       /*levelCount*/ 1,
+                                                       /*baseLayer*/ 0,
+                                                       /*layerCount*/ 1);
 
         // copy staging -> image
-        m_gpu->async_uploader->copy_buffer_to_image(staging.handle(),
-                                               m_gpu->texture->image(),
-                                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                               static_cast<uint32_t>(m_gpu->texture->width()),
-                                               static_cast<uint32_t>(m_gpu->texture->height()));
+        m_gpu->async_uploader->copy_buffer_to_image(
+            staging.handle(),
+            m_gpu->texture->image(),
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            static_cast<uint32_t>(m_gpu->texture->width()),
+            static_cast<uint32_t>(m_gpu->texture->height()));
 
         // TRANSFER_DST -> SHADER_READ
         m_gpu->async_uploader->transition_image_layout(m_gpu->texture->image(),
-                                                  VK_IMAGE_ASPECT_COLOR_BIT,
-                                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                                  0,
-                                                  1,
-                                                  0,
-                                                  1);
+                                                       VK_IMAGE_ASPECT_COLOR_BIT,
+                                                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                                       0,
+                                                       1,
+                                                       0,
+                                                       1);
 
         UploadTicket t = m_gpu->async_uploader->end_and_submit();
 
@@ -480,14 +483,14 @@ namespace ankh
         {
             // Construct FrameContext
             m_gpu->frames.emplace_back(m_context->allocator().handle(),
-                                  m_context->device_handle(),
-                                  graphicsFamily,
-                                  uboSize,
-                                  objectSize,
-                                  sets[i],
-                                  m_gpu->texture->view(),
-                                  m_gpu->texture->sampler(),
-                                  m_retirement_queue.get());
+                                       m_context->device_handle(),
+                                       graphicsFamily,
+                                       uboSize,
+                                       objectSize,
+                                       sets[i],
+                                       m_gpu->texture->view(),
+                                       m_gpu->texture->sampler(),
+                                       m_retirement_queue.get());
         }
     }
 
@@ -542,9 +545,11 @@ namespace ankh
 
         if (vb != VK_NULL_HANDLE && ib != VK_NULL_HANDLE)
         {
-            m_gpu->draw_pass->record(cmd, frame, image_index, vb, ib, meshInfo, *m_gpu->scene_renderer);
+            m_gpu->draw_pass
+                ->record(cmd, frame, image_index, vb, ib, meshInfo, *m_gpu->scene_renderer);
 
-            m_gpu->ui_pass->record(cmd, frame, image_index, vb, ib, meshInfo, *m_gpu->scene_renderer);
+            m_gpu->ui_pass
+                ->record(cmd, frame, image_index, vb, ib, meshInfo, *m_gpu->scene_renderer);
         }
 
         vkCmdEndRenderPass(cmd);
@@ -617,7 +622,8 @@ namespace ankh
 
         m_gpu->gpu_serial->mark_slot_completed(slot);
 
-        m_retirement_queue->collect(m_gpu->gpu_serial->completed(), m_gpu->async_uploader->completed_value());
+        m_retirement_queue->collect(m_gpu->gpu_serial->completed(),
+                                    m_gpu->async_uploader->completed_value());
 
         uint32_t image_index = 0;
         VkResult result = vkAcquireNextImageKHR(m_context->device_handle(),
@@ -720,37 +726,39 @@ namespace ankh
         cleanup_swapchain();
 
         m_gpu->swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
-                                                  m_context->device_handle(),
-                                                  m_context->allocator().handle(),
-                                                  m_context->surface_handle(),
-                                                  m_window->handle());
+                                                       m_context->device_handle(),
+                                                       m_context->allocator().handle(),
+                                                       m_context->surface_handle(),
+                                                       m_window->handle());
 
         // Recreate render pass with new swapchain format
-        m_gpu->render_pass =
-            std::make_unique<RenderPass>(m_context->device_handle(), m_gpu->swapchain->image_format());
+        m_gpu->render_pass = std::make_unique<RenderPass>(m_context->device_handle(),
+                                                          m_gpu->swapchain->image_format());
 
         // Recreate pipeline layout
-        m_gpu->pipeline_layout = std::make_unique<PipelineLayout>(m_context->device_handle(),
-                                                             m_gpu->descriptor_set_layout->handle());
+        m_gpu->pipeline_layout =
+            std::make_unique<PipelineLayout>(m_context->device_handle(),
+                                             m_gpu->descriptor_set_layout->handle());
 
         // Recreate graphics pipeline with new render pass
-        m_gpu->graphics_pipeline = std::make_unique<GraphicsPipeline>(m_context->device_handle(),
-                                                                 m_gpu->render_pass->handle(),
-                                                                 m_gpu->pipeline_layout->handle());
+        m_gpu->graphics_pipeline =
+            std::make_unique<GraphicsPipeline>(m_context->device_handle(),
+                                               m_gpu->render_pass->handle(),
+                                               m_gpu->pipeline_layout->handle());
 
         // Recreate draw passes with new pipeline references
         m_gpu->draw_pass = std::make_unique<DrawPass>(m_context->device_handle(),
-                                                 *m_gpu->swapchain,
-                                                 *m_gpu->render_pass,
-                                                 *m_gpu->graphics_pipeline,
-                                                 *m_gpu->pipeline_layout);
+                                                      *m_gpu->swapchain,
+                                                      *m_gpu->render_pass,
+                                                      *m_gpu->graphics_pipeline,
+                                                      *m_gpu->pipeline_layout);
 
         // Recreate UI pass with new pipeline references
         m_gpu->ui_pass = std::make_unique<UiPass>(m_context->device_handle(),
-                                             *m_gpu->swapchain,
-                                             *m_gpu->render_pass,
-                                             *m_gpu->graphics_pipeline,
-                                             *m_gpu->pipeline_layout);
+                                                  *m_gpu->swapchain,
+                                                  *m_gpu->render_pass,
+                                                  *m_gpu->graphics_pipeline,
+                                                  *m_gpu->pipeline_layout);
 
         // Recreate framebuffers
         create_framebuffers();
