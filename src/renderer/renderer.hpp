@@ -42,7 +42,6 @@ namespace ankh
     class GpuRetirementQueue;
     class GpuSignal;
 
-    // Group all GPU-owned resources that may enqueue retirements
     struct RendererGpuState
     {
         std::vector<FrameContext> frames;
@@ -92,17 +91,12 @@ namespace ankh
         GpuResourceTracker *tracker() const;
 
       private:
-        // Destruction order (reverse of declaration):
-        // 4th: m_context (owns VMA allocator, destroyed last)
         std::unique_ptr<Context> m_context;
-        
-        // 3rd: m_retirement_queue (destroyed after m_gpu)
+
         std::unique_ptr<GpuRetirementQueue> m_retirement_queue;
-        
-        // 2nd: m_gpu (GPU resources, explicitly reset in destructor)
+
         std::unique_ptr<RendererGpuState> m_gpu;
-        
-        // 1st: m_window (destroyed first)
+
         std::unique_ptr<Window> m_window;
     };
 
