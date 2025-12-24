@@ -81,7 +81,17 @@ namespace ankh
 
         wait_for_all_frames();
 
+        // Wait for all queues to be idle before cleanup
         vkQueueWaitIdle(m_context->present_queue());
+        vkQueueWaitIdle(m_context->transfer_queue());
+
+        // Collect any remaining retirement items with final timeline value
+        if (m_retirement_queue && m_async_uploader)
+        {
+            const uint64_t completedFrame = m_gpu_serial ? m_gpu_serial->completed() : UINT64_MAX;
+            const uint64_t completedTimeline = m_async_uploader->completed_value();
+            m_retirement_queue->collect(completedFrame, completedTimeline);
+        }
 
         if (m_retirement_queue)
         {
