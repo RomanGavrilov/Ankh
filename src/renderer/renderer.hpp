@@ -42,6 +42,29 @@ namespace ankh
     class GpuRetirementQueue;
     class GpuSignal;
 
+    // Group all GPU-owned resources that may enqueue retirements
+    struct RendererGpuState
+    {
+        std::vector<FrameContext> frames;
+        std::unique_ptr<Texture> texture;
+        std::unique_ptr<GpuMeshPool> gpu_mesh_pool;
+
+        std::unique_ptr<UiPass> ui_pass;
+        std::unique_ptr<DrawPass> draw_pass;
+        std::unique_ptr<GraphicsPipeline> graphics_pipeline;
+        std::unique_ptr<PipelineLayout> pipeline_layout;
+        std::unique_ptr<RenderPass> render_pass;
+        std::unique_ptr<Swapchain> swapchain;
+
+        std::unique_ptr<AsyncUploader> async_uploader;
+        std::unique_ptr<DescriptorPool> descriptor_pool;
+        std::unique_ptr<DescriptorSetLayout> descriptor_set_layout;
+
+        std::unique_ptr<SceneRenderer> scene_renderer;
+        std::unique_ptr<FrameRing> frame_ring;
+        std::unique_ptr<GpuSerial> gpu_serial;
+    };
+
     class Renderer
     {
       public:
@@ -69,29 +92,16 @@ namespace ankh
         GpuResourceTracker *tracker() const;
 
       private:
-        std::unique_ptr<GpuRetirementQueue> m_retirement_queue;
-
         std::unique_ptr<Window> m_window;
+        
+        // GPU state that may enqueue retirements (destroyed first in shutdown)
+        std::unique_ptr<RendererGpuState> m_gpu;
+        
+        // Retirement queue (flushed after m_gpu is destroyed)
+        std::unique_ptr<GpuRetirementQueue> m_retirement_queue;
+        
+        // Context owns VMA allocator (destroyed last)
         std::unique_ptr<Context> m_context;
-        std::unique_ptr<Swapchain> m_swapchain;
-        std::unique_ptr<RenderPass> m_render_pass;
-        std::unique_ptr<DescriptorSetLayout> m_descriptor_set_layout;
-        std::unique_ptr<DescriptorPool> m_descriptor_pool;
-        std::unique_ptr<PipelineLayout> m_pipeline_layout;
-        std::unique_ptr<GraphicsPipeline> m_graphics_pipeline;
-        std::unique_ptr<AsyncUploader> m_async_uploader;
-        std::unique_ptr<DrawPass> m_draw_pass;
-        std::unique_ptr<UiPass> m_ui_pass;
-        std::unique_ptr<SceneRenderer> m_scene_renderer;
-
-        std::unique_ptr<Texture> m_texture;
-
-        std::unique_ptr<FrameRing> m_frame_ring;
-        std::unique_ptr<GpuSerial> m_gpu_serial;
-
-        std::vector<FrameContext> m_frames;
-
-        std::unique_ptr<GpuMeshPool> m_gpu_mesh_pool;
     };
 
 } // namespace ankh
