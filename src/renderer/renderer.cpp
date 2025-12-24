@@ -64,6 +64,7 @@ namespace ankh
         ANKH_LOG_DEBUG("[Renderer] ObjectBuffer capacity per frame: " +
                        std::to_string(ankh::config().maxObjects));
 
+        m_gpu = std::make_unique<RendererGpuState>();
         init_vulkan();
     }
 
@@ -74,7 +75,7 @@ namespace ankh
             return;
         }
 
-        if (m_swapchain)
+        if (m_gpu && m_gpu->swapchain)
         {
             retire_swapchain_resources();
         }
@@ -85,27 +86,13 @@ namespace ankh
         vkQueueWaitIdle(m_context->graphics_queue());
         vkQueueWaitIdle(m_context->transfer_queue());
 
-        m_frames.clear();
-        m_texture.reset();
-        m_gpu_mesh_pool.reset();
-        m_ui_pass.reset();
-        m_draw_pass.reset();
-        m_graphics_pipeline.reset();
-        m_pipeline_layout.reset();
-        m_render_pass.reset();
-        m_swapchain.reset();
-        m_async_uploader.reset();
-        m_descriptor_pool.reset();
-        m_descriptor_set_layout.reset();
-        m_scene_renderer.reset();
-        m_frame_ring.reset();
-        m_gpu_serial.reset();
+        // ✅ one reset kills everything that may enqueue retirements
+        m_gpu.reset();
 
+        // ✅ now flush retirements produced by those destructors
         if (m_retirement_queue)
         {
-            m_retirement_queue->collect(m_gpu_serial ? m_gpu_serial->last_issued() : UINT64_MAX,
-                                        m_async_uploader ? m_async_uploader->completed_value()
-                                                         : UINT64_MAX);
+            m_retirement_queue->collect(UINT64_MAX, UINT64_MAX);
             m_retirement_queue->flush_all();
         }
 
@@ -121,64 +108,64 @@ namespace ankh
         // Context sets up instance, debug, surface, physical device, device
         m_context = std::make_unique<Context>(m_window->handle());
 
-        m_swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
+        m_gpu->swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
                                                   m_context->device_handle(),
                                                   m_context->allocator().handle(),
                                                   m_context->surface_handle(),
                                                   m_window->handle(),
                                                   tracker());
 
-        m_render_pass =
-            std::make_unique<RenderPass>(m_context->device_handle(), m_swapchain->image_format());
+        m_gpu->render_pass =
+            std::make_unique<RenderPass>(m_context->device_handle(), m_gpu->swapchain->image_format());
 
-        m_descriptor_set_layout = std::make_unique<DescriptorSetLayout>(m_context->device_handle());
+        m_gpu->descriptor_set_layout = std::make_unique<DescriptorSetLayout>(m_context->device_handle());
 
-        m_pipeline_layout = std::make_unique<PipelineLayout>(m_context->device_handle(),
-                                                             m_descriptor_set_layout->handle());
+        m_gpu->pipeline_layout = std::make_unique<PipelineLayout>(m_context->device_handle(),
+                                                             m_gpu->descriptor_set_layout->handle());
 
-        m_graphics_pipeline = std::make_unique<GraphicsPipeline>(m_context->device_handle(),
-                                                                 m_render_pass->handle(),
-                                                                 m_pipeline_layout->handle());
+        m_gpu->graphics_pipeline = std::make_unique<GraphicsPipeline>(m_context->device_handle(),
+                                                                 m_gpu->render_pass->handle(),
+                                                                 m_gpu->pipeline_layout->handle());
 
-        m_draw_pass = std::make_unique<DrawPass>(m_context->device_handle(),
-                                                 *m_swapchain,
-                                                 *m_render_pass,
-                                                 *m_graphics_pipeline,
-                                                 *m_pipeline_layout);
+        m_gpu->draw_pass = std::make_unique<DrawPass>(m_context->device_handle(),
+                                                 *m_gpu->swapchain,
+                                                 *m_gpu->render_pass,
+                                                 *m_gpu->graphics_pipeline,
+                                                 *m_gpu->pipeline_layout);
 
-        m_ui_pass = std::make_unique<UiPass>(m_context->device_handle(),
-                                             *m_swapchain,
-                                             *m_render_pass,
-                                             *m_graphics_pipeline,
-                                             *m_pipeline_layout);
+        m_gpu->ui_pass = std::make_unique<UiPass>(m_context->device_handle(),
+                                             *m_gpu->swapchain,
+                                             *m_gpu->render_pass,
+                                             *m_gpu->graphics_pipeline,
+                                             *m_gpu->pipeline_layout);
 
-        m_scene_renderer = std::make_unique<SceneRenderer>();
+        m_gpu->scene_renderer = std::make_unique<SceneRenderer>();
 
         const auto framesInFlight{ankh::config().framesInFlight};
 
-        m_frame_ring = std::make_unique<FrameRing>(framesInFlight);
-        m_gpu_serial = std::make_unique<GpuSerial>(framesInFlight);
+        m_gpu->frame_ring = std::make_unique<FrameRing>(framesInFlight);
+        m_gpu->gpu_serial = std::make_unique<GpuSerial>(framesInFlight);
         m_retirement_queue = std::make_unique<GpuRetirementQueue>();
 
         // Upload context: device + graphics queue family index
-        m_async_uploader =
+        m_gpu->async_uploader =
             std::make_unique<AsyncUploader>(m_context->device_handle(),
                                             m_context->queues().transferFamily.value(),
                                             m_context->transfer_queue());
 
-        m_gpu_mesh_pool = std::make_unique<GpuMeshPool>(m_context->allocator().handle(),
+        m_gpu->gpu_mesh_pool = std::make_unique<GpuMeshPool>(m_context->allocator().handle(),
                                                         m_context->device_handle(),
-                                                        *m_async_uploader);
+                                                        *m_gpu->async_uploader);
 
         // Load a model into the scene
         {
             // adjust path to where you actually put Box.gltf or Box.glb
             Model model =
                 ModelLoader::load_gltf("D:\\Rep\\Ankh\\assets\\models\\cerberus\\cerberus.gltf",
-                                       m_scene_renderer->mesh_pool(),
-                                       m_scene_renderer->material_pool());
+                                       m_gpu->scene_renderer->mesh_pool(),
+                                       m_gpu->scene_renderer->material_pool());
 
-            MaterialHandle default_mat = m_scene_renderer->default_material_handle();
+            MaterialHandle default_mat = m_gpu->scene_renderer->default_material_handle();
 
             for (const auto &node : model.nodes())
             {
@@ -194,10 +181,10 @@ namespace ankh
                 r.base_transform = node.local_transform;
                 r.transform = r.base_transform;
 
-                m_scene_renderer->renderables().push_back(r);
+                m_gpu->scene_renderer->renderables().push_back(r);
             }
 
-            SceneBounds bounds = m_scene_renderer->compute_scene_bounds();
+            SceneBounds bounds = m_gpu->scene_renderer->compute_scene_bounds();
             if (bounds.valid)
             {
                 glm::vec3 center = 0.5f * (bounds.min + bounds.max);
@@ -206,13 +193,13 @@ namespace ankh
                 // simple heuristic distance; works for most scenes
                 float distance = (radius > 0.0f) ? radius * 2.5f : 5.0f;
 
-                auto &cam = m_scene_renderer->camera();
+                auto &cam = m_gpu->scene_renderer->camera();
                 cam.set_target(center);
                 cam.set_position(center + glm::vec3(distance, distance, distance));
             }
         }
 
-        m_gpu_mesh_pool->build_from_mesh_pool(m_scene_renderer->mesh_pool());
+        m_gpu->gpu_mesh_pool->build_from_mesh_pool(m_gpu->scene_renderer->mesh_pool());
 
         create_framebuffers();
         create_descriptor_pool();
@@ -222,28 +209,28 @@ namespace ankh
 
     void Renderer::create_framebuffers()
     {
-        m_swapchain->create_framebuffers(m_render_pass->handle());
+        m_gpu->swapchain->create_framebuffers(m_gpu->render_pass->handle());
     }
 
     void Renderer::cleanup_swapchain()
     {
         // These may have been moved into the deletion queue already.
-        m_ui_pass.reset();
-        m_draw_pass.reset();
-        m_graphics_pipeline.reset();
-        m_pipeline_layout.reset();
-        m_render_pass.reset();
-        m_swapchain.reset();
+        m_gpu->ui_pass.reset();
+        m_gpu->draw_pass.reset();
+        m_gpu->graphics_pipeline.reset();
+        m_gpu->pipeline_layout.reset();
+        m_gpu->render_pass.reset();
+        m_gpu->swapchain.reset();
     }
 
     void Renderer::wait_for_all_frames()
     {
         VkDevice dev = m_context->device_handle();
 
-        m_frame_ring->for_each_slot(
+        m_gpu->frame_ring->for_each_slot(
             [this, dev](FrameSlot slot)
             {
-                auto &frame = m_frames[slot];
+                auto &frame = m_gpu->frames[slot];
                 VkFence fence = frame.in_flight_fence();
                 ANKH_VK_CHECK(vkWaitForFences(dev, 1, &fence, VK_TRUE, UINT64_MAX));
             });
@@ -251,7 +238,7 @@ namespace ankh
 
     void Renderer::retire_swapchain_resources()
     {
-        if (!m_swapchain)
+        if (!m_gpu->swapchain)
         {
             return;
         }
@@ -260,10 +247,10 @@ namespace ankh
 
         // threshold = last issued serial + framesInFlight
         const uint64_t fif = static_cast<uint64_t>(ankh::config().framesInFlight);
-        const uint64_t retire_at = m_gpu_serial->last_issued() + fif;
+        const uint64_t retire_at = m_gpu->gpu_serial->last_issued() + fif;
 
         // 1) retire swapchain-owned resources
-        auto retired = m_swapchain->retire_resources();
+        auto retired = m_gpu->swapchain->retire_resources();
 
         m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
                                          [device,
@@ -280,40 +267,40 @@ namespace ankh
                                              }
                                          });
 
-        if (m_ui_pass)
+        if (m_gpu->ui_pass)
         {
             m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
-                                             [p = std::move(m_ui_pass)]() mutable {});
+                                             [p = std::move(m_gpu->ui_pass)]() mutable {});
         }
 
-        if (m_draw_pass)
+        if (m_gpu->draw_pass)
         {
             m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
-                                             [p = std::move(m_draw_pass)]() mutable {});
+                                             [p = std::move(m_gpu->draw_pass)]() mutable {});
         }
 
-        if (m_graphics_pipeline)
+        if (m_gpu->graphics_pipeline)
         {
             m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
-                                             [p = std::move(m_graphics_pipeline)]() mutable {});
+                                             [p = std::move(m_gpu->graphics_pipeline)]() mutable {});
         }
 
-        if (m_pipeline_layout)
+        if (m_gpu->pipeline_layout)
         {
             m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
-                                             [p = std::move(m_pipeline_layout)]() mutable {});
+                                             [p = std::move(m_gpu->pipeline_layout)]() mutable {});
         }
 
-        if (m_render_pass)
+        if (m_gpu->render_pass)
         {
             m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
-                                             [p = std::move(m_render_pass)]() mutable {});
+                                             [p = std::move(m_gpu->render_pass)]() mutable {});
         }
     }
 
     void Renderer::create_descriptor_pool()
     {
-        m_descriptor_pool = std::make_unique<DescriptorPool>(m_context->device_handle(),
+        m_gpu->descriptor_pool = std::make_unique<DescriptorPool>(m_context->device_handle(),
                                                              ankh::config().framesInFlight);
     }
 
@@ -322,8 +309,8 @@ namespace ankh
         // Try to find a material in the scene that has a baseColor image
         std::shared_ptr<const CpuImage> sourceImage;
 
-        auto &renderables = m_scene_renderer->renderables();
-        auto &materials = m_scene_renderer->material_pool();
+        auto &renderables = m_gpu->scene_renderer->renderables();
+        auto &materials = m_gpu->scene_renderer->material_pool();
 
         for (const auto &r : renderables)
         {
@@ -419,7 +406,7 @@ namespace ankh
         }
 
         // Device-local texture
-        m_texture =
+        m_gpu->texture =
             std::make_unique<Texture>(m_context->allocator().handle(),
                                       m_context->device_handle(),
                                       texWidth,
@@ -430,10 +417,10 @@ namespace ankh
                                       VK_IMAGE_ASPECT_COLOR_BIT);
 
         // Upload via UploadContext
-        m_async_uploader->begin();
+        m_gpu->async_uploader->begin();
 
         // UNDEFINED -> TRANSFER_DST
-        m_async_uploader->transition_image_layout(m_texture->image(), // VkImage
+        m_gpu->async_uploader->transition_image_layout(m_gpu->texture->image(), // VkImage
                                                   VK_IMAGE_ASPECT_COLOR_BIT,
                                                   VK_IMAGE_LAYOUT_UNDEFINED,
                                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -443,14 +430,14 @@ namespace ankh
                                                   /*layerCount*/ 1);
 
         // copy staging -> image
-        m_async_uploader->copy_buffer_to_image(staging.handle(),
-                                               m_texture->image(),
+        m_gpu->async_uploader->copy_buffer_to_image(staging.handle(),
+                                               m_gpu->texture->image(),
                                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                               static_cast<uint32_t>(m_texture->width()),
-                                               static_cast<uint32_t>(m_texture->height()));
+                                               static_cast<uint32_t>(m_gpu->texture->width()),
+                                               static_cast<uint32_t>(m_gpu->texture->height()));
 
         // TRANSFER_DST -> SHADER_READ
-        m_async_uploader->transition_image_layout(m_texture->image(),
+        m_gpu->async_uploader->transition_image_layout(m_gpu->texture->image(),
                                                   VK_IMAGE_ASPECT_COLOR_BIT,
                                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                                   VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -459,7 +446,7 @@ namespace ankh
                                                   0,
                                                   1);
 
-        UploadTicket t = m_async_uploader->end_and_submit();
+        UploadTicket t = m_gpu->async_uploader->end_and_submit();
 
         m_retirement_queue->retire_after(GpuSignal::timeline(t.value),
                                          [st = std::move(staging)]() mutable {});
@@ -467,8 +454,8 @@ namespace ankh
 
     void Renderer::create_frames()
     {
-        m_frames.clear();
-        m_frames.reserve(ankh::config().framesInFlight);
+        m_gpu->frames.clear();
+        m_gpu->frames.reserve(ankh::config().framesInFlight);
 
         QueueFamilyIndices queues = m_context->queues();
         uint32_t graphicsFamily = queues.graphicsFamily.value();
@@ -477,11 +464,11 @@ namespace ankh
         VkDeviceSize objectSize = sizeof(ObjectDataGPU) * ankh::config().maxObjects;
 
         std::vector<VkDescriptorSetLayout> layouts(ankh::config().framesInFlight,
-                                                   m_descriptor_set_layout->handle());
+                                                   m_gpu->descriptor_set_layout->handle());
 
         VkDescriptorSetAllocateInfo ai{};
         ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        ai.descriptorPool = m_descriptor_pool->handle();
+        ai.descriptorPool = m_gpu->descriptor_pool->handle();
         ai.descriptorSetCount = ankh::config().framesInFlight;
         ai.pSetLayouts = layouts.data();
 
@@ -492,14 +479,14 @@ namespace ankh
         for (uint32_t i = 0; i < ankh::config().framesInFlight; ++i)
         {
             // Construct FrameContext
-            m_frames.emplace_back(m_context->allocator().handle(),
+            m_gpu->frames.emplace_back(m_context->allocator().handle(),
                                   m_context->device_handle(),
                                   graphicsFamily,
                                   uboSize,
                                   objectSize,
                                   sets[i],
-                                  m_texture->view(),
-                                  m_texture->sampler(),
+                                  m_gpu->texture->view(),
+                                  m_gpu->texture->sampler(),
                                   m_retirement_queue.get());
         }
     }
@@ -513,10 +500,10 @@ namespace ankh
         // --- Begin render pass ---
         VkRenderPassBeginInfo rp_info{};
         rp_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        rp_info.renderPass = m_render_pass->handle();
-        rp_info.framebuffer = m_swapchain->framebuffer(image_index).handle();
+        rp_info.renderPass = m_gpu->render_pass->handle();
+        rp_info.framebuffer = m_gpu->swapchain->framebuffer(image_index).handle();
         rp_info.renderArea.offset = {0, 0};
-        rp_info.renderArea.extent = m_swapchain->extent();
+        rp_info.renderArea.extent = m_gpu->swapchain->extent();
 
         std::array<VkClearValue, 2> clear_values{};
         clear_values[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -531,33 +518,33 @@ namespace ankh
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = static_cast<float>(m_swapchain->extent().width);
-        viewport.height = static_cast<float>(m_swapchain->extent().height);
+        viewport.width = static_cast<float>(m_gpu->swapchain->extent().width);
+        viewport.height = static_cast<float>(m_gpu->swapchain->extent().height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         vkCmdSetViewport(cmd, 0, 1, &viewport);
 
         VkRect2D scissor{};
         scissor.offset = {0, 0};
-        scissor.extent = m_swapchain->extent();
+        scissor.extent = m_gpu->swapchain->extent();
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-        if (!m_gpu_mesh_pool)
+        if (!m_gpu->gpu_mesh_pool)
         {
             vkCmdEndRenderPass(cmd);
             frame.end();
             return;
         }
 
-        VkBuffer vb = m_gpu_mesh_pool->vertex_buffer();
-        VkBuffer ib = m_gpu_mesh_pool->index_buffer();
-        const auto &meshInfo = m_gpu_mesh_pool->draw_info();
+        VkBuffer vb = m_gpu->gpu_mesh_pool->vertex_buffer();
+        VkBuffer ib = m_gpu->gpu_mesh_pool->index_buffer();
+        const auto &meshInfo = m_gpu->gpu_mesh_pool->draw_info();
 
         if (vb != VK_NULL_HANDLE && ib != VK_NULL_HANDLE)
         {
-            m_draw_pass->record(cmd, frame, image_index, vb, ib, meshInfo, *m_scene_renderer);
+            m_gpu->draw_pass->record(cmd, frame, image_index, vb, ib, meshInfo, *m_gpu->scene_renderer);
 
-            m_ui_pass->record(cmd, frame, image_index, vb, ib, meshInfo, *m_scene_renderer);
+            m_gpu->ui_pass->record(cmd, frame, image_index, vb, ib, meshInfo, *m_gpu->scene_renderer);
         }
 
         vkCmdEndRenderPass(cmd);
@@ -571,11 +558,11 @@ namespace ankh
             std::chrono::duration<float>(std::chrono::high_resolution_clock::now() - start).count();
 
         // 1. Update scene (camera + renderable transforms)
-        m_scene_renderer->update_frame(frame, *m_swapchain, time);
+        m_gpu->scene_renderer->update_frame(frame, *m_gpu->swapchain, time);
 
         // 2. Write FrameUBO
         FrameUBO fubo{};
-        const auto &cam = m_scene_renderer->camera();
+        const auto &cam = m_gpu->scene_renderer->camera();
         fubo.view = cam.view();
         fubo.proj = cam.proj();
         fubo.globalAlbedo = glm::vec4(1.0f);
@@ -588,8 +575,8 @@ namespace ankh
 
         // 3. Write ObjectDataGPU array
         auto *objData = reinterpret_cast<ObjectDataGPU *>(frame.object_mapped());
-        auto &renderables = m_scene_renderer->renderables();
-        auto &materials = m_scene_renderer->material_pool();
+        auto &renderables = m_gpu->scene_renderer->renderables();
+        auto &materials = m_gpu->scene_renderer->material_pool();
 
         const uint32_t capacity = frame.object_capacity();
         const uint32_t requested = static_cast<uint32_t>(renderables.size());
@@ -621,20 +608,20 @@ namespace ankh
 
     void Renderer::draw_frame()
     {
-        const FrameSlot slot = m_frame_ring->current();
+        const FrameSlot slot = m_gpu->frame_ring->current();
 
-        auto &frame = m_frames[slot];
+        auto &frame = m_gpu->frames[slot];
 
         VkFence fence = frame.in_flight_fence();
         ANKH_VK_CHECK(vkWaitForFences(m_context->device_handle(), 1, &fence, VK_TRUE, UINT64_MAX));
 
-        m_gpu_serial->mark_slot_completed(slot);
+        m_gpu->gpu_serial->mark_slot_completed(slot);
 
-        m_retirement_queue->collect(m_gpu_serial->completed(), m_async_uploader->completed_value());
+        m_retirement_queue->collect(m_gpu->gpu_serial->completed(), m_gpu->async_uploader->completed_value());
 
         uint32_t image_index = 0;
         VkResult result = vkAcquireNextImageKHR(m_context->device_handle(),
-                                                m_swapchain->handle(),
+                                                m_gpu->swapchain->handle(),
                                                 ankh::config().acquireImageTimeoutNs,
                                                 frame.image_available(),
                                                 VK_NULL_HANDLE,
@@ -662,7 +649,7 @@ namespace ankh
 
         ANKH_VK_CHECK(vkResetFences(m_context->device_handle(), 1, &fence));
 
-        const GpuSerialValue frameId = m_gpu_serial->issue();
+        const GpuSerialValue frameId = m_gpu->gpu_serial->issue();
 
         record_command_buffer(frame, image_index, GpuSignal::frame(frameId));
 
@@ -683,7 +670,7 @@ namespace ankh
         submit.signalSemaphoreCount = 1;
         submit.pSignalSemaphores = &signalSem;
 
-        m_gpu_serial->mark_slot_used(slot, frameId);
+        m_gpu->gpu_serial->mark_slot_used(slot, frameId);
 
         ANKH_VK_CHECK(vkQueueSubmit(m_context->graphics_queue(), 1, &submit, fence));
 
@@ -692,7 +679,7 @@ namespace ankh
         present.waitSemaphoreCount = 1;
         present.pWaitSemaphores = &signalSem;
 
-        VkSwapchainKHR swapchains[] = {m_swapchain->handle()};
+        VkSwapchainKHR swapchains[] = {m_gpu->swapchain->handle()};
         present.swapchainCount = 1;
         present.pSwapchains = swapchains;
         present.pImageIndices = &image_index;
@@ -710,7 +697,7 @@ namespace ankh
             throw std::runtime_error("failed to present swapchain image");
         }
 
-        m_frame_ring->advance();
+        m_gpu->frame_ring->advance();
     }
 
     void Renderer::recreate_swapchain()
@@ -732,38 +719,38 @@ namespace ankh
 
         cleanup_swapchain();
 
-        m_swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
+        m_gpu->swapchain = std::make_unique<Swapchain>(m_context->physical_device(),
                                                   m_context->device_handle(),
                                                   m_context->allocator().handle(),
                                                   m_context->surface_handle(),
                                                   m_window->handle());
 
         // Recreate render pass with new swapchain format
-        m_render_pass =
-            std::make_unique<RenderPass>(m_context->device_handle(), m_swapchain->image_format());
+        m_gpu->render_pass =
+            std::make_unique<RenderPass>(m_context->device_handle(), m_gpu->swapchain->image_format());
 
         // Recreate pipeline layout
-        m_pipeline_layout = std::make_unique<PipelineLayout>(m_context->device_handle(),
-                                                             m_descriptor_set_layout->handle());
+        m_gpu->pipeline_layout = std::make_unique<PipelineLayout>(m_context->device_handle(),
+                                                             m_gpu->descriptor_set_layout->handle());
 
         // Recreate graphics pipeline with new render pass
-        m_graphics_pipeline = std::make_unique<GraphicsPipeline>(m_context->device_handle(),
-                                                                 m_render_pass->handle(),
-                                                                 m_pipeline_layout->handle());
+        m_gpu->graphics_pipeline = std::make_unique<GraphicsPipeline>(m_context->device_handle(),
+                                                                 m_gpu->render_pass->handle(),
+                                                                 m_gpu->pipeline_layout->handle());
 
         // Recreate draw passes with new pipeline references
-        m_draw_pass = std::make_unique<DrawPass>(m_context->device_handle(),
-                                                 *m_swapchain,
-                                                 *m_render_pass,
-                                                 *m_graphics_pipeline,
-                                                 *m_pipeline_layout);
+        m_gpu->draw_pass = std::make_unique<DrawPass>(m_context->device_handle(),
+                                                 *m_gpu->swapchain,
+                                                 *m_gpu->render_pass,
+                                                 *m_gpu->graphics_pipeline,
+                                                 *m_gpu->pipeline_layout);
 
         // Recreate UI pass with new pipeline references
-        m_ui_pass = std::make_unique<UiPass>(m_context->device_handle(),
-                                             *m_swapchain,
-                                             *m_render_pass,
-                                             *m_graphics_pipeline,
-                                             *m_pipeline_layout);
+        m_gpu->ui_pass = std::make_unique<UiPass>(m_context->device_handle(),
+                                             *m_gpu->swapchain,
+                                             *m_gpu->render_pass,
+                                             *m_gpu->graphics_pipeline,
+                                             *m_gpu->pipeline_layout);
 
         // Recreate framebuffers
         create_framebuffers();
