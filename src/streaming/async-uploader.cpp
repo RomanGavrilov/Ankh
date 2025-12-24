@@ -101,6 +101,16 @@ namespace ankh
 
     AsyncUploader::~AsyncUploader()
     {
+        // Wait for all pending upload operations to complete before destroying resources
+        if (m_timeline && m_nextSignal > 0)
+        {
+            VkSemaphoreWaitInfo wi{VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO};
+            wi.semaphoreCount = 1;
+            wi.pSemaphores = &m_timeline;
+            wi.pValues = &m_nextSignal;
+            vkWaitSemaphores(m_device, &wi, UINT64_MAX);
+        }
+
         if (m_timeline)
         {
             vkDestroySemaphore(m_device, m_timeline, nullptr);
