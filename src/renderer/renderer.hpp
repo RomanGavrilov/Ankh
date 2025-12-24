@@ -92,15 +92,17 @@ namespace ankh
         GpuResourceTracker *tracker() const;
 
       private:
-        // Context owns VMA allocator (declared first, destroyed last due to reverse declaration order)
+        // Destruction order (reverse of declaration):
+        // 4th: m_context (owns VMA allocator, destroyed last)
         std::unique_ptr<Context> m_context;
         
-        // Retirement queue (declared second, destroyed third)
+        // 3rd: m_retirement_queue (destroyed after m_gpu)
         std::unique_ptr<GpuRetirementQueue> m_retirement_queue;
         
-        // GPU state that may enqueue retirements (declared third, destroyed second via explicit reset)
+        // 2nd: m_gpu (GPU resources, explicitly reset in destructor)
         std::unique_ptr<RendererGpuState> m_gpu;
         
+        // 1st: m_window (destroyed first)
         std::unique_ptr<Window> m_window;
     };
 
