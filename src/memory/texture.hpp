@@ -2,9 +2,9 @@
 #pragma once
 
 #include "image.hpp"
-#include "utils/types.hpp"
 #include "utils/gpu-retirement-queue.hpp"
 #include "utils/gpu-signal.hpp"
+#include "utils/types.hpp"
 #include <vk_mem_alloc.h>
 
 namespace ankh
@@ -55,6 +55,10 @@ namespace ankh
 
       private:
         void destroy();
+
+        GpuRetirementQueue *m_retirement{nullptr};
+
+        GpuSignal m_signal{};
 
         VkDevice m_device{VK_NULL_HANDLE};
 

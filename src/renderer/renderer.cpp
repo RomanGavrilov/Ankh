@@ -258,6 +258,12 @@ namespace ankh
         // 1) retire swapchain-owned resources
         auto retired = m_gpu->swapchain->retire_resources();
 
+        if (retired.depthImage)
+        {
+            retired.depthImage->set_retirement(m_retirement_queue.get(),
+                                               GpuSignal::frame(retire_at));
+        }
+
         ankh::retire_handles<VkImageView>(*m_retirement_queue,
                                           GpuSignal::frame(retire_at),
                                           std::move(retired.imageViews),

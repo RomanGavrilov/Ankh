@@ -9,9 +9,10 @@
 #include "memory/upload-context.hpp"
 #include "renderer/mesh-draw-info.hpp"
 #include "scene/mesh-pool.hpp"
-#include "scene/renderable.hpp" // MeshHandle
+#include "scene/renderable.hpp"
 #include "streaming/async-uploader.hpp"
 #include "utils/types.hpp"
+#include "utils/gpu-retirement-queue.hpp"
 #include <vk_mem_alloc.h>
 
 namespace ankh
@@ -38,11 +39,15 @@ namespace ankh
 
       private:
         VkDevice m_device{VK_NULL_HANDLE};
+
         VmaAllocator m_allocator{VK_NULL_HANDLE};
+
         AsyncUploader &m_async_uploader;
 
         std::unique_ptr<Buffer> m_vertex_buffer;
+
         std::unique_ptr<Buffer> m_index_buffer;
+
         std::unordered_map<MeshHandle, MeshDrawInfo> m_draw_info;
 
         GpuRetirementQueue *m_retirement{nullptr};

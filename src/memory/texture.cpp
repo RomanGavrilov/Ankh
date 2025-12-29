@@ -53,9 +53,22 @@ namespace ankh
     void Texture::destroy()
     {
         if (m_device == VK_NULL_HANDLE)
+        {
             return;
+        }
 
-        if (m_sampler != VK_NULL_HANDLE)
+        if (m_sampler != VK_NULL_HANDLE && m_retirement && m_signal.value != 0)
+        {
+            VkDevice dev = m_device;
+            VkSampler sampler = m_sampler;
+
+            m_retirement->retire_after(m_signal,
+                                       [dev, sampler]() mutable
+                                       { vkDestroySampler(dev, sampler, nullptr); });
+
+            m_sampler = VK_NULL_HANDLE;
+        }
+        else if (m_sampler != VK_NULL_HANDLE)
         {
             vkDestroySampler(m_device, m_sampler, nullptr);
             m_sampler = VK_NULL_HANDLE;
@@ -132,6 +145,9 @@ namespace ankh
 
     void Texture::set_retirement(GpuRetirementQueue *q, GpuSignal s) noexcept
     {
+        m_retirement = q;
+        m_signal = s;
+
         m_image.set_retirement(q, s);
     }
 
