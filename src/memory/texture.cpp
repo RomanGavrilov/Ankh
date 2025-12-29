@@ -130,4 +130,9 @@ namespace ankh
         return m_image;
     }
 
+    void Texture::set_retirement(GpuRetirementQueue *q, GpuSignal s) noexcept
+    {
+        m_image.set_retirement(q, s);
+    }
+
 } // namespace ankh

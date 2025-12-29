@@ -1,6 +1,8 @@
 // src/memory/image.hpp
 #pragma once
 
+#include "utils/gpu-retirement-queue.hpp"
+#include "utils/gpu-signal.hpp"
 #include "utils/types.hpp"
 #include <vk_mem_alloc.h>
 
@@ -30,35 +32,26 @@ namespace ankh
         Image(Image &&other) noexcept;
         Image &operator=(Image &&other) noexcept;
 
-        VkImage image() const
-        {
-            return m_image;
-        }
-        VkImageView view() const
-        {
-            return m_view;
-        }
-        VkDevice device() const
-        {
-            return m_device;
-        }
-        VkFormat format() const
-        {
-            return m_format;
-        }
-        uint32_t width() const
-        {
-            return m_width;
-        }
-        uint32_t height() const
-        {
-            return m_height;
-        }
+        VkImage image() const;
+
+        VkImageView view() const;
+
+        VkDevice device() const;
+
+        VkFormat format() const;
+
+        uint32_t width() const;
+
+        uint32_t height() const;
+
+        void set_retirement(GpuRetirementQueue *retirement, GpuSignal signal) noexcept;
 
       private:
         void destroy();
 
-        
+        GpuRetirementQueue *m_retirement{nullptr};
+        GpuSignal m_signal{};
+
         VkDevice m_device{VK_NULL_HANDLE};
         VmaAllocator m_allocator{VK_NULL_HANDLE};
         VkImage m_image{VK_NULL_HANDLE};
