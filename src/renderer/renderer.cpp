@@ -236,6 +236,9 @@ namespace ankh
                 auto &frame = m_gpu->frames[slot];
                 VkFence fence = frame.in_flight_fence();
                 ANKH_VK_CHECK(vkWaitForFences(dev, 1, &fence, VK_TRUE, UINT64_MAX));
+
+                // keep GPU serial in sync
+                m_gpu->gpu_serial->mark_slot_completed(slot);
             });
     }
 
