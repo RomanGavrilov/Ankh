@@ -74,8 +74,12 @@ namespace ankh
             m_sampler = VK_NULL_HANDLE;
         }
 
-        // m_image destroys itself (vmaDestroyImage + view)
+        // Image will destroy immediately or defer internally depending on its retirement state
+        // (Image::~Image() calls Image::destroy()).
+
         m_device = VK_NULL_HANDLE;
+        m_retirement = nullptr;
+        m_signal = GpuSignal{};
     }
 
     Texture::Texture(Texture &&other) noexcept
