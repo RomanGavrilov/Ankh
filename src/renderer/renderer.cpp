@@ -249,7 +249,7 @@ namespace ankh
 
         // threshold = last issued serial + framesInFlight
         const uint64_t fif = static_cast<uint64_t>(ankh::config().framesInFlight);
-        const uint64_t retire_at = m_gpu->gpu_serial->last_issued() + fif;
+        const uint64_t retire_at = m_gpu->gpu_serial->last_issued();
 
         // 1) retire swapchain-owned resources
         auto retired = m_gpu->swapchain->retire_resources();
