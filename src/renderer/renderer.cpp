@@ -31,6 +31,7 @@
 
 #include "utils/gpu-retirement-queue.hpp"
 #include "utils/gpu-tracking.hpp"
+#include "utils/retire.hpp"
 #include "utils/types.hpp"
 
 #include "memory/buffer.hpp"
@@ -253,50 +254,53 @@ namespace ankh
         // 1) retire swapchain-owned resources
         auto retired = m_gpu->swapchain->retire_resources();
 
-        m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
-                                         [device,
-                                          views = std::move(retired.imageViews),
-                                          fbs = std::move(retired.framebuffers),
-                                          depth = std::move(retired.depthImage)]() mutable
-                                         {
-                                             for (VkImageView v : views)
-                                             {
-                                                 if (v)
-                                                 {
-                                                     vkDestroyImageView(device, v, nullptr);
-                                                 }
-                                             }
-                                         });
+        ankh::retire_handles<VkImageView>(*m_retirement_queue,
+                                          GpuSignal::frame(retire_at),
+                                          std::move(retired.imageViews),
+                                          [device](VkImageView iv)
+                                          { vkDestroyImageView(device, iv, nullptr); });
+
+        ankh::retire_owned(*m_retirement_queue,
+                           GpuSignal::frame(retire_at),
+                           std::move(retired.framebuffers));
+
+        ankh::retire_owned(*m_retirement_queue,
+                           GpuSignal::frame(retire_at),
+                           std::move(retired.depthImage));
 
         if (m_gpu->ui_pass)
         {
-            m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
-                                             [p = std::move(m_gpu->ui_pass)]() mutable {});
+            ankh::retire_owned(*m_retirement_queue,
+                               GpuSignal::frame(retire_at),
+                               std::move(m_gpu->ui_pass));
         }
 
         if (m_gpu->draw_pass)
         {
-            m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
-                                             [p = std::move(m_gpu->draw_pass)]() mutable {});
+            ankh::retire_owned(*m_retirement_queue,
+                               GpuSignal::frame(retire_at),
+                               std::move(m_gpu->draw_pass));
         }
 
         if (m_gpu->graphics_pipeline)
         {
-            m_retirement_queue->retire_after(
-                GpuSignal::frame(retire_at),
-                [p = std::move(m_gpu->graphics_pipeline)]() mutable {});
+            ankh::retire_owned(*m_retirement_queue,
+                               GpuSignal::frame(retire_at),
+                               std::move(m_gpu->graphics_pipeline));
         }
 
         if (m_gpu->pipeline_layout)
         {
-            m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
-                                             [p = std::move(m_gpu->pipeline_layout)]() mutable {});
+            ankh::retire_owned(*m_retirement_queue,
+                               GpuSignal::frame(retire_at),
+                               std::move(m_gpu->pipeline_layout));
         }
 
         if (m_gpu->render_pass)
         {
-            m_retirement_queue->retire_after(GpuSignal::frame(retire_at),
-                                             [p = std::move(m_gpu->render_pass)]() mutable {});
+            ankh::retire_owned(*m_retirement_queue,
+                               GpuSignal::frame(retire_at),
+                               std::move(m_gpu->render_pass));
         }
     }
 
