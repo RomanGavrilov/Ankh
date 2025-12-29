@@ -33,45 +33,29 @@ namespace ankh
         Texture(Texture &&other) noexcept;
         Texture &operator=(Texture &&other) noexcept;
 
-        VkImage image() const
-        {
-            return m_image.image();
-        }
-        VkImageView view() const
-        {
-            return m_image.view();
-        }
-        VkSampler sampler() const
-        {
-            return m_sampler;
-        }
-        VkFormat format() const
-        {
-            return m_image.format();
-        }
-        uint32_t width() const
-        {
-            return m_image.width();
-        }
-        uint32_t height() const
-        {
-            return m_image.height();
-        }
+        VkImage image() const;
 
-        Image &image_object()
-        {
-            return m_image;
-        }
-        const Image &image_object() const
-        {
-            return m_image;
-        }
+        VkImageView view() const;
+
+        VkSampler sampler() const;
+
+        VkFormat format() const;
+
+        uint32_t width() const;
+
+        uint32_t height() const;
+
+        Image &image_object();
+
+        const Image &image_object() const;
 
       private:
         void destroy();
 
         VkDevice m_device{VK_NULL_HANDLE};
+
         Image m_image;
+        
         VkSampler m_sampler{VK_NULL_HANDLE};
     };
 } // namespace ankh
