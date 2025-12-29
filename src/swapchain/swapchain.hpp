@@ -73,7 +73,6 @@ namespace ankh
 
         // Called after render pass exists / changes
         void create_framebuffers(VkRenderPass renderPass);
-        void destroy_framebuffers();
         VkImageView depth_view() const;
         VkFormat depth_format() const
         {

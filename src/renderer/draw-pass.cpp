@@ -63,7 +63,9 @@ namespace ankh
         for (uint32_t i = 0; i < count; ++i)
         {
             MeshHandle meshHandle = renderables[i].mesh;
+
             auto it = mesh_draw_info.find(meshHandle);
+
             if (it == mesh_draw_info.end())
             {
                 // Mesh has no GPU range; skip (should not happen in normal cases)

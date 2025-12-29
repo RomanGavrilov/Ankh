@@ -261,12 +261,6 @@ namespace ankh
         }
     }
 
-    // TODO delete this as it's not used?
-    void Swapchain::destroy_framebuffers()
-    {
-        m_framebuffers.clear(); // Framebuffer RAII will destroy VkFramebuffer
-    }
-
     // ==== helpers ====
 
     Swapchain::SwapChainSupportDetails
