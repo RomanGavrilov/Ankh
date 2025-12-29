@@ -14,15 +14,15 @@ namespace ankh
                  VkImageUsageFlags usage,
                  VmaMemoryUsage memoryUsage,
                  VkImageAspectFlags aspectMask)
-        : m_allocator(allocator)
-        , m_device(device)
-        , m_format(format)
-        , m_width(width)
-        , m_height(height)
+        : m_allocator{allocator}
+        , m_device{device}
+        , m_format{format}
+        , m_width{width}
+        , m_height{height}
     {
         if (!m_allocator || m_device == VK_NULL_HANDLE)
         {
-            throw std::runtime_error("Image: invalid allocator/device");
+            ANKH_THROW_MSG("Invalid allocator or device");
         }
 
         VkImageCreateInfo ci{};
@@ -72,7 +72,47 @@ namespace ankh
     void Image::destroy()
     {
         if (m_device == VK_NULL_HANDLE)
+        {
             return;
+        }
+
+        if (m_retirement && m_signal.value != 0)
+        {
+            VkDevice device = m_device;
+            VmaAllocator allocator = m_allocator;
+            VkImage image = m_image;
+            VmaAllocation allocation = m_allocation;
+            VkImageView view = m_view;
+
+            m_retirement->retire_after(m_signal,
+                                       [device, allocator, image, allocation, view]() mutable
+                                       {
+                                           if (view != VK_NULL_HANDLE)
+                                           {
+                                               vkDestroyImageView(device, view, nullptr);
+                                           }
+                                           if (allocator && image != VK_NULL_HANDLE &&
+                                               allocation != VK_NULL_HANDLE)
+                                           {
+                                               vmaDestroyImage(allocator, image, allocation);
+                                           }
+                                       });
+
+            m_view = VK_NULL_HANDLE;
+            m_image = VK_NULL_HANDLE;
+            m_allocation = VK_NULL_HANDLE;
+            m_device = VK_NULL_HANDLE;
+            m_allocator = VK_NULL_HANDLE;
+            m_width = 0;
+            m_height = 0;
+            m_format = {};
+            m_retirement = nullptr;
+            m_signal = GpuSignal{};
+
+            return;
+        }
+
+        // Destroy resources immediately if no retirement queue is set
 
         if (m_view != VK_NULL_HANDLE)
         {
@@ -92,6 +132,8 @@ namespace ankh
         m_width = 0;
         m_height = 0;
         m_format = {};
+        m_retirement = nullptr;
+        m_signal = GpuSignal{};
     }
 
     Image::Image(Image &&other) noexcept
@@ -125,6 +167,42 @@ namespace ankh
         other.m_height = 0;
 
         return *this;
+    }
+
+    VkImage Image::image() const
+    {
+        return m_image;
+    }
+
+    VkImageView Image::view() const
+    {
+        return m_view;
+    }
+
+    VkDevice Image::device() const
+    {
+        return m_device;
+    }
+
+    VkFormat Image::format() const
+    {
+        return m_format;
+    }
+
+    uint32_t Image::width() const
+    {
+        return m_width;
+    }
+
+    uint32_t Image::height() const
+    {
+        return m_height;
+    }
+
+    void Image::set_retirement(GpuRetirementQueue *retirement, GpuSignal signal) noexcept
+    {
+        m_retirement = retirement;
+        m_signal = signal;
     }
 
 } // namespace ankh

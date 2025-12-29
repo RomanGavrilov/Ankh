@@ -3,6 +3,8 @@
 
 #include "image.hpp"
 #include "utils/types.hpp"
+#include "utils/gpu-retirement-queue.hpp"
+#include "utils/gpu-signal.hpp"
 #include <vk_mem_alloc.h>
 
 namespace ankh
@@ -49,13 +51,15 @@ namespace ankh
 
         const Image &image_object() const;
 
+        void set_retirement(GpuRetirementQueue *q, GpuSignal s) noexcept;
+
       private:
         void destroy();
 
         VkDevice m_device{VK_NULL_HANDLE};
 
         Image m_image;
-        
+
         VkSampler m_sampler{VK_NULL_HANDLE};
     };
 } // namespace ankh
