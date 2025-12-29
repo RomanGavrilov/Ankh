@@ -157,7 +157,8 @@ namespace ankh
 
         m_gpu->gpu_mesh_pool = std::make_unique<GpuMeshPool>(m_context->allocator().handle(),
                                                              m_context->device_handle(),
-                                                             *m_gpu->async_uploader);
+                                                             *m_gpu->async_uploader,
+                                                             m_retirement_queue.get());
 
         // Load a model into the scene
         {
@@ -542,6 +543,8 @@ namespace ankh
             frame.end();
             return;
         }
+
+        m_gpu->gpu_mesh_pool->mark_used(signal);
 
         VkBuffer vb = m_gpu->gpu_mesh_pool->vertex_buffer();
         VkBuffer ib = m_gpu->gpu_mesh_pool->index_buffer();

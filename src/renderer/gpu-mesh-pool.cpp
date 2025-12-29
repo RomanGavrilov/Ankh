@@ -8,10 +8,14 @@
 namespace ankh
 {
 
-    GpuMeshPool::GpuMeshPool(VmaAllocator allocator, VkDevice device, AsyncUploader &uploadContext)
+    GpuMeshPool::GpuMeshPool(VmaAllocator allocator,
+                             VkDevice device,
+                             AsyncUploader &uploadContext,
+                             GpuRetirementQueue *retirement)
         : m_allocator{allocator}
         , m_device{device}
         , m_async_uploader{uploadContext}
+        , m_retirement{retirement}
     {
     }
 
@@ -116,6 +120,56 @@ namespace ankh
         ANKH_LOG_DEBUG("[GpuMeshPool] Uploaded " + std::to_string(allVertices.size()) +
                        " vertices, " + std::to_string(allIndices.size()) + " indices, " +
                        std::to_string(m_draw_info.size()) + " meshes.");
+
+        if (m_retirement)
+        {
+            m_retirement->retire_after(GpuSignal::timeline(ticket.value),
+                                       [stagingVertexBuffer = std::move(vertexStaging),
+                                        stagingIndexBuffer = std::move(indexStaging)]() mutable
+                                       {
+                                           // Buffers will be destroyed here when going out of scope
+                                       });
+        }
+        else
+        {
+            // If no retirement queue is provided, do not return while upload is in-flight.
+            // Best fallback is to block (or assert).
+            ANKH_THROW_MSG("[GpuMeshPool] No retirement queue set; staging buffers will not be "
+                           "freed after upload!");
+        }
+    }
+
+    void GpuMeshPool::mark_used(GpuSignal signal) noexcept
+    {
+        if (!m_retirement)
+        {
+            return;
+        }
+
+        if (m_vertex_buffer)
+        {
+            m_vertex_buffer->set_retirement(m_retirement, signal);
+        }
+
+        if (m_index_buffer)
+        {
+            m_index_buffer->set_retirement(m_retirement, signal);
+        }
+    }
+
+    const std::unordered_map<MeshHandle, MeshDrawInfo> &GpuMeshPool::draw_info() const noexcept
+    {
+        return m_draw_info;
+    }
+
+    VkBuffer GpuMeshPool::vertex_buffer() const noexcept
+    {
+        return m_vertex_buffer ? m_vertex_buffer->handle() : VK_NULL_HANDLE;
+    }
+
+    VkBuffer GpuMeshPool::index_buffer() const noexcept
+    {
+        return m_index_buffer ? m_index_buffer->handle() : VK_NULL_HANDLE;
     }
 
 } // namespace ankh
