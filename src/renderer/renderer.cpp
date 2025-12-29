@@ -725,6 +725,9 @@ namespace ankh
 
         wait_for_all_frames();
 
+        m_retirement_queue->collect(m_gpu->gpu_serial->completed(),
+                                    m_gpu->async_uploader->completed_value());
+
         vkQueueWaitIdle(m_context->present_queue());
 
         cleanup_swapchain();

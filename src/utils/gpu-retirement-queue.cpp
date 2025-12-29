@@ -16,7 +16,7 @@ namespace ankh
             return;
         }
 
-        std::scoped_lock lock(m_mutex);
+        std::scoped_lock lock{m_mutex};
         m_items.push_back(Item{signal, std::move(fn)});
     }
 
@@ -25,7 +25,7 @@ namespace ankh
         std::vector<Item> ready;
 
         {
-            std::scoped_lock lock(m_mutex);
+            std::scoped_lock lock{m_mutex};
 
             size_t write = 0;
             for (size_t i = 0; i < m_items.size(); ++i)
@@ -70,7 +70,7 @@ namespace ankh
     {
         std::vector<Item> all;
         {
-            std::scoped_lock lock(m_mutex);
+            std::scoped_lock lock{m_mutex};
             all = std::move(m_items);
             m_items.clear();
         }
