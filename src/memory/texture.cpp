@@ -90,4 +90,44 @@ namespace ankh
         return *this;
     }
 
+    VkImage Texture::image() const
+    {
+        return m_image.image();
+    }
+
+    VkImageView Texture::view() const
+    {
+        return m_image.view();
+    }
+
+    VkSampler Texture::sampler() const
+    {
+        return m_sampler;
+    }
+
+    VkFormat Texture::format() const
+    {
+        return m_image.format();
+    }
+
+    uint32_t Texture::width() const
+    {
+        return m_image.width();
+    }
+
+    uint32_t Texture::height() const
+    {
+        return m_image.height();
+    }
+
+    Image &Texture::image_object()
+    {
+        return m_image;
+    }
+
+    const Image &Texture::image_object() const
+    {
+        return m_image;
+    }
+
 } // namespace ankh
