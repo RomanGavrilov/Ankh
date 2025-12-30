@@ -667,9 +667,13 @@ namespace ankh
             throw std::runtime_error("failed to acquire swapchain image");
         }
 
+        m_gpu->swapchain->wait_image_if_in_flight(m_context->device_handle(), image_index);
+
         update_uniform_buffer(frame);
 
         ANKH_VK_CHECK(vkResetFences(m_context->device_handle(), 1, &fence));
+
+        m_gpu->swapchain->mark_image_in_flight(image_index, fence);
 
         const GpuSerialValue frameId = m_gpu->gpu_serial->issue();
 

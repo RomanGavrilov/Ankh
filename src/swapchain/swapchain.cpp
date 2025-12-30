@@ -259,6 +259,31 @@ namespace ankh
 
             m_framebuffers.emplace_back(m_device, renderPass, attachments, m_extent, m_tracker);
         }
+
+        m_images_in_flight.assign(m_framebuffers.size(), VK_NULL_HANDLE);
+    }
+
+    void Swapchain::wait_image_if_in_flight(VkDevice device, uint32_t imageIndex)
+    {
+        ANKH_ASSERT(imageIndex < m_images_in_flight.size());
+
+        VkFence fence = m_images_in_flight[imageIndex];
+
+        if (fence != VK_NULL_HANDLE)
+        {
+            ANKH_VK_CHECK(vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX));
+        }
+    }
+
+    void Swapchain::mark_image_in_flight(uint32_t imageIndex, VkFence frameFence) noexcept
+    {
+        if (imageIndex >= m_images_in_flight.size())
+        {
+            ANKH_LOG_ERROR("[Swapchain] mark_image_in_flight: imageIndex out of bounds");
+            return;
+        }
+
+        m_images_in_flight[imageIndex] = frameFence;
     }
 
     // ==== helpers ====
@@ -380,6 +405,18 @@ namespace ankh
 
             return actual;
         }
+    }
+
+    // ==== accessors ====
+
+    std::vector<VkFence> &Swapchain::images_in_flight() noexcept
+    {
+        return m_images_in_flight;
+    }
+
+    const std::vector<VkFence> &Swapchain::images_in_flight() const noexcept
+    {
+        return m_images_in_flight;
     }
 
 } // namespace ankh

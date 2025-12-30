@@ -79,6 +79,14 @@ namespace ankh
             return m_depth_format;
         }
 
+        std::vector<VkFence> &images_in_flight() noexcept;
+
+        const std::vector<VkFence> &images_in_flight() const noexcept;
+
+        void wait_image_if_in_flight(VkDevice device, uint32_t imageIndex);
+
+        void mark_image_in_flight(uint32_t imageIndex, VkFence frameFence) noexcept;
+
       private:
         void create_swapchain(const PhysicalDevice &physicalDevice,
                               VkSurfaceKHR surface,
@@ -115,6 +123,7 @@ namespace ankh
         VkExtent2D m_extent;
 
         std::vector<VkImage> m_images;
+        std::vector<VkFence> m_images_in_flight;
         std::vector<VkImageView> m_image_views;
 
         std::unique_ptr<Image> m_depth_image;
