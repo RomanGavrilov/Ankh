@@ -605,7 +605,7 @@ namespace ankh
         fubo.lightDir = glm::vec4(lightDir, 0.0f);
 
         // =========================
-        // CHANGE #1: allocate transient UBO span from FrameAllocator
+        // Allocate transient UBO span from FrameAllocator
         // (begin_frame must have been called already in draw_frame)
         // =========================
         ANKH_ASSERT(m_gpu->frame_allocator != nullptr);
@@ -696,7 +696,7 @@ namespace ankh
 
         else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
         {
-            throw std::runtime_error("failed to acquire swapchain image");
+            ANKH_THROW_MSG("Failed to acquire swapchain image");
         }
 
         m_gpu->swapchain->wait_image_if_in_flight(m_context->device_handle(), image_index);
@@ -708,9 +708,13 @@ namespace ankh
         const GpuSignal signal = GpuSignal::frame(frameId);
 
         // =========================
-        // Begin frame allocator for THIS slot + signal
+        // Start frame slot
+        // Select the frame slice
+        // Resets the write head
+        // Associates lifetime with a concrete GPU signal
         // =========================
         ANKH_ASSERT(m_gpu->frame_allocator != nullptr);
+
         m_gpu->frame_allocator->begin_frame(slot, signal);
 
         // =========================

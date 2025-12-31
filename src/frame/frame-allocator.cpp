@@ -69,6 +69,7 @@ namespace ankh
                            size,
                            m_limits.perFrameBytes - m_writeHead,
                            m_limits.perFrameBytes);
+
             ANKH_ASSERT(false && "FrameAllocator overflow");
 #endif
             return {};
