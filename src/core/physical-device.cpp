@@ -139,6 +139,7 @@ namespace ankh
 
             m_device = dev;
             m_indices = indices;
+            vkGetPhysicalDeviceProperties(m_device, &m_props);
             break;
         }
 

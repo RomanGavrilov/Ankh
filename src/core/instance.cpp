@@ -52,7 +52,9 @@ namespace ankh
     Instance::~Instance()
     {
         if (m_instance)
+        {
             vkDestroyInstance(m_instance, nullptr);
+        }
     }
 
 } // namespace ankh

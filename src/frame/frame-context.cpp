@@ -16,7 +16,6 @@ namespace ankh
     FrameContext::FrameContext(VmaAllocator allocator,
                                VkDevice device,
                                uint32_t graphicsQueueFamilyIndex,
-                               VkDeviceSize uniformBufferSize,
                                VkDeviceSize objectBufferSize,
                                VkDescriptorSet descriptorSet,
                                VkImageView textureView,
@@ -30,17 +29,6 @@ namespace ankh
         m_pool = std::make_unique<CommandPool>(m_device, graphicsQueueFamilyIndex);
 
         m_cmd = std::make_unique<CommandBuffer>(m_device, m_pool->handle());
-
-        // Uniform buffer (FrameUBO)
-        m_uniform_buffer = std::make_unique<Buffer>(allocator,
-                                                    device,
-                                                    uniformBufferSize,
-                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                    VMA_MEMORY_USAGE_CPU_TO_GPU,
-                                                    retirement,
-                                                    GpuSignal{});
-
-        m_uniform_mapped = m_uniform_buffer->map();
 
         // Object buffer (ObjectDataGPU array)
         m_object_buffer = std::make_unique<Buffer>(allocator,
@@ -60,13 +48,9 @@ namespace ankh
         // Update descriptor set for this frame
         DescriptorWriter writer{m_device};
 
-        writer.writeUniformBuffer(m_descriptor_set,
-                                  m_uniform_buffer->handle(),
-                                  uniformBufferSize,
-                                  /*binding*/ 0);
-
         writer.writeStorageBuffer(m_descriptor_set,
                                   m_object_buffer->handle(),
+                                  /*offset*/ 0,
                                   objectBufferSize,
                                   /*binding*/ 1);
 
@@ -94,12 +78,6 @@ namespace ankh
         if (m_device == VK_NULL_HANDLE)
         {
             return;
-        }
-
-        if (m_uniform_buffer && m_uniform_mapped)
-        {
-            m_uniform_buffer->unmap();
-            m_uniform_mapped = nullptr;
         }
 
         if (m_object_buffer && m_object_mapped)
@@ -131,15 +109,12 @@ namespace ankh
         : m_device(other.m_device)
         , m_pool(std::move(other.m_pool))
         , m_cmd(std::move(other.m_cmd))
-        , m_uniform_buffer(std::move(other.m_uniform_buffer))
-        , m_uniform_mapped(other.m_uniform_mapped)
         , m_descriptor_set(other.m_descriptor_set)
         , m_image_available(other.m_image_available)
         , m_render_finished(other.m_render_finished)
         , m_in_flight(other.m_in_flight)
     {
         other.m_device = VK_NULL_HANDLE;
-        other.m_uniform_mapped = nullptr;
         other.m_descriptor_set = VK_NULL_HANDLE;
         other.m_image_available = VK_NULL_HANDLE;
         other.m_render_finished = VK_NULL_HANDLE;
@@ -155,7 +130,6 @@ namespace ankh
     {
         if (m_retirement)
         {
-            m_uniform_buffer->set_retirement(m_retirement, signal);
             m_object_buffer->set_retirement(m_retirement, signal);
         }
 

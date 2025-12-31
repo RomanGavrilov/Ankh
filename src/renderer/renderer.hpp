@@ -41,7 +41,9 @@ namespace ankh
     class GpuSerial;
     class GpuRetirementQueue;
     class GpuSignal;
-
+    class FrameAllocator;
+    
+  
     struct RendererGpuState
     {
         std::vector<FrameContext> frames;
@@ -62,6 +64,7 @@ namespace ankh
         std::unique_ptr<SceneRenderer> scene_renderer;
         std::unique_ptr<FrameRing> frame_ring;
         std::unique_ptr<GpuSerial> gpu_serial;
+        std::unique_ptr<FrameAllocator> frame_allocator;
     };
 
     class Renderer
@@ -79,9 +82,11 @@ namespace ankh
         void create_descriptor_pool();
         void create_texture();
         void create_frames();
-
+        
         void record_command_buffer(FrameContext &frame, uint32_t image_index, GpuSignal signal);
-        void update_uniform_buffer(FrameContext &frame);
+        
+        using  FrameSlot = uint32_t;
+        void update_uniform_buffer(FrameContext &frame, FrameSlot slot);
 
         void draw_frame();
         void recreate_swapchain();

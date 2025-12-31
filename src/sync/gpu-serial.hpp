@@ -1,4 +1,6 @@
+// src/sync/gpu-serial.hpp
 #pragma once
+
 #include "sync/frame-ring.hpp"
 #include <cstdint>
 #include <vector>

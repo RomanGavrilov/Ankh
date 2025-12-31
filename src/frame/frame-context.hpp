@@ -22,7 +22,6 @@ namespace ankh
         FrameContext(VmaAllocator allocator,
                      VkDevice device,
                      uint32_t graphicsQueueFamilyIndex,
-                     VkDeviceSize uniformBufferSize,
                      VkDeviceSize objectBufferSize,
                      VkDescriptorSet descriptorSet,
                      VkImageView textureView,
@@ -39,11 +38,6 @@ namespace ankh
 
         // Accessors
         VkCommandBuffer command_buffer() const;
-
-        void *uniform_mapped() const
-        {
-            return m_uniform_mapped;
-        }
 
         void *object_mapped() const
         {
@@ -84,9 +78,6 @@ namespace ankh
 
         std::unique_ptr<CommandPool> m_pool;
         std::unique_ptr<CommandBuffer> m_cmd;
-
-        std::unique_ptr<Buffer> m_uniform_buffer;
-        void *m_uniform_mapped{};
 
         std::unique_ptr<Buffer> m_object_buffer;
         void *m_object_mapped{};
