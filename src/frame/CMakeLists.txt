@@ -1,5 +1,7 @@
 add_library(ankh_frame STATIC
     frame-context.cpp
+    frame-allocator.cpp
+    frame-allocator-tests.cpp
 )
 
 target_include_directories(ankh_frame

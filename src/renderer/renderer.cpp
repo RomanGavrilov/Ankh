@@ -25,6 +25,7 @@
 
 #include "descriptors/descriptor-pool.hpp"
 #include "descriptors/descriptor-set-layout.hpp"
+#include "descriptors/descriptor-writer.hpp"
 
 #include "pipeline/graphics-pipeline.hpp"
 #include "pipeline/pipeline-layout.hpp"
@@ -41,6 +42,7 @@
 #include "commands/command-buffer.hpp"
 #include "commands/command-pool.hpp"
 
+#include "frame/frame-allocator.hpp"
 #include "frame/frame-context.hpp"
 
 #include "sync/frame-ring.hpp"
@@ -148,6 +150,19 @@ namespace ankh
         m_gpu->frame_ring = std::make_unique<FrameRing>(framesInFlight);
         m_gpu->gpu_serial = std::make_unique<GpuSerial>(framesInFlight);
         m_retirement_queue = std::make_unique<GpuRetirementQueue>();
+
+        const auto props = m_context->physical_device().properties();
+
+        FrameAllocator::Limits lim{};
+        lim.framesInFlight = ankh::config().framesInFlight;
+        lim.perFrameBytes = 1ull * 1024ull * 1024ull; // 1 MiB start; adjust later
+        lim.minAlignment = std::max(props.limits.minUniformBufferOffsetAlignment,
+                                    props.limits.minStorageBufferOffsetAlignment);
+
+        m_gpu->frame_allocator = std::make_unique<FrameAllocator>(m_context->allocator().handle(),
+                                                                  m_context->device_handle(),
+                                                                  lim,
+                                                                  m_retirement_queue.get());
 
         // Upload context: device + graphics queue family index
         m_gpu->async_uploader =
@@ -477,7 +492,6 @@ namespace ankh
         QueueFamilyIndices queues = m_context->queues();
         uint32_t graphicsFamily = queues.graphicsFamily.value();
 
-        VkDeviceSize uboSize = sizeof(FrameUBO);
         VkDeviceSize objectSize = sizeof(ObjectDataGPU) * ankh::config().maxObjects;
 
         std::vector<VkDescriptorSetLayout> layouts(ankh::config().framesInFlight,
@@ -499,7 +513,6 @@ namespace ankh
             m_gpu->frames.emplace_back(m_context->allocator().handle(),
                                        m_context->device_handle(),
                                        graphicsFamily,
-                                       uboSize,
                                        objectSize,
                                        sets[i],
                                        m_gpu->texture->view(),
@@ -572,7 +585,7 @@ namespace ankh
         frame.end();
     }
 
-    void Renderer::update_uniform_buffer(FrameContext &frame)
+    void Renderer::update_uniform_buffer(FrameContext &frame, FrameSlot slot)
     {
         static auto start = std::chrono::high_resolution_clock::now();
         float time =
@@ -581,20 +594,41 @@ namespace ankh
         // 1. Update scene (camera + renderable transforms)
         m_gpu->scene_renderer->update_frame(frame, *m_gpu->swapchain, time);
 
-        // 2. Write FrameUBO
+        // 2. Build FrameUBO (same as before)
         FrameUBO fubo{};
         const auto &cam = m_gpu->scene_renderer->camera();
         fubo.view = cam.view();
         fubo.proj = cam.proj();
         fubo.globalAlbedo = glm::vec4(1.0f);
 
-        // simple directional light from above-front-left
         glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f));
         fubo.lightDir = glm::vec4(lightDir, 0.0f);
 
-        std::memcpy(frame.uniform_mapped(), &fubo, sizeof(fubo));
+        // =========================
+        // CHANGE #1: allocate transient UBO span from FrameAllocator
+        // (begin_frame must have been called already in draw_frame)
+        // =========================
+        ANKH_ASSERT(m_gpu->frame_allocator != nullptr);
 
-        // 3. Write ObjectDataGPU array
+        auto span = m_gpu->frame_allocator->alloc("FrameUBO", sizeof(FrameUBO), alignof(FrameUBO));
+
+        ANKH_ASSERT(span.buffer != VK_NULL_HANDLE);
+        ANKH_ASSERT(span.cpu != nullptr);
+        ANKH_ASSERT(span.size == sizeof(FrameUBO));
+
+        std::memcpy(span.cpu, &fubo, sizeof(FrameUBO));
+
+        // =========================
+        // Update descriptor set binding 0 with span offset
+        // =========================
+        DescriptorWriter writer{m_context->device_handle()};
+        writer.writeUniformBuffer(frame.descriptor_set(),
+                                  span.buffer,
+                                  span.offset,
+                                  span.size,
+                                  /*binding*/ 0);
+
+        // 3. Write ObjectDataGPU array (unchanged)
         auto *objData = reinterpret_cast<ObjectDataGPU *>(frame.object_mapped());
         auto &renderables = m_gpu->scene_renderer->renderables();
         auto &materials = m_gpu->scene_renderer->material_pool();
@@ -617,12 +651,10 @@ namespace ankh
             objData[i].model = r.transform;
 
             glm::vec4 albedo{1.0f};
-
             if (materials.valid(r.material))
             {
                 albedo = materials.get(r.material).albedo();
             }
-
             objData[i].albedo = albedo;
         }
     }
@@ -669,13 +701,27 @@ namespace ankh
 
         m_gpu->swapchain->wait_image_if_in_flight(m_context->device_handle(), image_index);
 
-        update_uniform_buffer(frame);
+        // =========================
+        // Issue serial EARLY (before writing transient data)
+        // =========================
+        const GpuSerialValue frameId = m_gpu->gpu_serial->issue();
+        const GpuSignal signal = GpuSignal::frame(frameId);
+
+        // =========================
+        // Begin frame allocator for THIS slot + signal
+        // =========================
+        ANKH_ASSERT(m_gpu->frame_allocator != nullptr);
+        m_gpu->frame_allocator->begin_frame(slot, signal);
+
+        // =========================
+        // Update_uniform_buffer now writes FrameUBO via FrameAllocator
+        // and updates binding 0 descriptor set with correct offset.
+        // =========================
+        update_uniform_buffer(frame, slot);
 
         ANKH_VK_CHECK(vkResetFences(m_context->device_handle(), 1, &fence));
 
         m_gpu->swapchain->mark_image_in_flight(image_index, fence);
-
-        const GpuSerialValue frameId = m_gpu->gpu_serial->issue();
 
         record_command_buffer(frame, image_index, GpuSignal::frame(frameId));
 

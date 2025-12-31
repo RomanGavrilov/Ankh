@@ -12,12 +12,14 @@ namespace ankh
         // 0: uniform (FrameUBO)
         void writeUniformBuffer(VkDescriptorSet set,
                                 VkBuffer buf,
+                                VkDeviceSize offset,
                                 VkDeviceSize size,
                                 uint32_t binding = 0);
 
-        // 1: storage (ObjectBuffer)
+        // 1: storage buffer (ObjectDataGPU array)
         void writeStorageBuffer(VkDescriptorSet set,
                                 VkBuffer buf,
+                                VkDeviceSize offset,
                                 VkDeviceSize size,
                                 uint32_t binding = 1);
 

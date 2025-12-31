@@ -1,4 +1,6 @@
+// src/sync/frame-ring.hpp
 #pragma once
+
 #include <cstdint>
 
 namespace ankh

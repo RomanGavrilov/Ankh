@@ -9,28 +9,6 @@ namespace ankh
     {
     }
 
-    void DescriptorWriter::writeUniformBuffer(VkDescriptorSet set,
-                                              VkBuffer buf,
-                                              VkDeviceSize size,
-                                              uint32_t binding)
-    {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = buf;
-        bufferInfo.offset = 0;
-        bufferInfo.range = size;
-
-        VkWriteDescriptorSet write{};
-        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write.dstSet = set;
-        write.dstBinding = binding;
-        write.dstArrayElement = 0;
-        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        write.descriptorCount = 1;
-        write.pBufferInfo = &bufferInfo;
-
-        vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
-    }
-
     void DescriptorWriter::writeCombinedImageSampler(VkDescriptorSet set,
                                                      VkImageView view,
                                                      VkSampler sampler,
@@ -54,21 +32,43 @@ namespace ankh
         vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
     }
 
-    void DescriptorWriter::writeStorageBuffer(VkDescriptorSet set,
+    void DescriptorWriter::writeUniformBuffer(VkDescriptorSet set,
                                               VkBuffer buf,
+                                              VkDeviceSize offset,
                                               VkDeviceSize size,
                                               uint32_t binding)
     {
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = buf;
-        bufferInfo.offset = 0;
+        bufferInfo.offset = offset;
         bufferInfo.range = size;
 
         VkWriteDescriptorSet write{};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write.dstSet = set;
         write.dstBinding = binding;
-        write.dstArrayElement = 0;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        write.descriptorCount = 1;
+        write.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
+    }
+
+    void DescriptorWriter::writeStorageBuffer(VkDescriptorSet set,
+                                              VkBuffer buf,
+                                              VkDeviceSize offset,
+                                              VkDeviceSize size,
+                                              uint32_t binding)
+    {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = buf;
+        bufferInfo.offset = offset;
+        bufferInfo.range = size;
+
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = set;
+        write.dstBinding = binding;
         write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         write.descriptorCount = 1;
         write.pBufferInfo = &bufferInfo;
