@@ -3,6 +3,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <vector>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -45,8 +46,7 @@ namespace ankh
             ci.ppEnabledLayerNames = layers;
         }
 
-        if (vkCreateInstance(&ci, nullptr, &m_instance) != VK_SUCCESS)
-            throw std::runtime_error("failed to create Vulkan instance");
+        ANKH_VK_CHECK(vkCreateInstance(&ci, nullptr, &m_instance));
     }
 
     Instance::~Instance()

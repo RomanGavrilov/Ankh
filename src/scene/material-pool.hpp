@@ -7,6 +7,7 @@
 #include <optional>
 #include <stdexcept>
 #include <vector>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -37,7 +38,7 @@ namespace ankh
         {
             if (!valid(h))
             {
-                throw std::runtime_error("MaterialPool::get: invalid handle");
+                ANKH_THROW_MSG("MaterialPool::get: invalid handle");
             }
 
             return *m_materials[h];
@@ -47,7 +48,7 @@ namespace ankh
         {
             if (!valid(h))
             {
-                throw std::runtime_error("MaterialPool::get: invalid handle");
+                ANKH_THROW_MSG("MaterialPool::get: invalid handle");
             }
 
             return *m_materials[h];

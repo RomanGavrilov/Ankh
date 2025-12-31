@@ -1,6 +1,7 @@
 #include "core/debug-messenger.hpp"
 #include "utils/config.hpp"
 #include <iostream>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -42,8 +43,7 @@ namespace ankh
                          VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         ci.pfnUserCallback = debug_callback;
 
-        if (vkCreateDebugUtilsMessengerEXT(m_instance, &ci, nullptr, &m_messenger) != VK_SUCCESS)
-            throw std::runtime_error("failed to create debug messenger");
+        ANKH_VK_CHECK(vkCreateDebugUtilsMessengerEXT(m_instance, &ci, nullptr, &m_messenger));
     }
 
     DebugMessenger::~DebugMessenger()

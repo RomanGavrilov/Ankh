@@ -7,6 +7,7 @@
 #include <optional>
 #include <stdexcept>
 #include <vector>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -36,7 +37,7 @@ namespace ankh
         {
             if (!valid(h))
             {
-                throw std::runtime_error("MeshPool::get: invalid handle");
+                ANKH_THROW_MSG("MeshPool::get: invalid handle");
             }
 
             return *m_meshes[h];
@@ -46,7 +47,7 @@ namespace ankh
         {
             if (!valid(h))
             {
-                throw std::runtime_error("MeshPool::get: invalid handle");
+                ANKH_THROW_MSG("MeshPool::get: invalid handle");
             }
 
             return *m_meshes[h];

@@ -1,5 +1,6 @@
 #include "platform/window.hpp"
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -18,7 +19,7 @@ namespace ankh
     {
         if (!glfwInit())
         {
-            throw std::runtime_error("GLFW initialization failed");
+            ANKH_THROW_MSG("GLFW initialization failed");
         }
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -31,7 +32,7 @@ namespace ankh
 
         if (!m_window)
         {
-            throw std::runtime_error("Failed to create GLFW window");
+            ANKH_THROW_MSG("Failed to create GLFW window");
         }
 
         glfwSetWindowUserPointer(m_window, this);

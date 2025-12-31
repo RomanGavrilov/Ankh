@@ -37,7 +37,6 @@
 
 #include "memory/buffer.hpp"
 #include "memory/texture.hpp"
-#include "memory/upload-context.hpp"
 
 #include "commands/command-buffer.hpp"
 #include "commands/command-pool.hpp"
@@ -447,7 +446,7 @@ namespace ankh
                                       VMA_MEMORY_USAGE_GPU_ONLY,
                                       VK_IMAGE_ASPECT_COLOR_BIT);
 
-        // Upload via UploadContext
+        // Upload via async uploader
         m_gpu->async_uploader->begin();
 
         // UNDEFINED -> TRANSFER_DST
@@ -605,7 +604,7 @@ namespace ankh
         fubo.lightDir = glm::vec4(lightDir, 0.0f);
 
         // =========================
-        // CHANGE #1: allocate transient UBO span from FrameAllocator
+        // Allocate transient UBO span from FrameAllocator
         // (begin_frame must have been called already in draw_frame)
         // =========================
         ANKH_ASSERT(m_gpu->frame_allocator != nullptr);
@@ -696,7 +695,7 @@ namespace ankh
 
         else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
         {
-            throw std::runtime_error("failed to acquire swapchain image");
+            ANKH_THROW_MSG("Failed to acquire swapchain image");
         }
 
         m_gpu->swapchain->wait_image_if_in_flight(m_context->device_handle(), image_index);
@@ -766,7 +765,7 @@ namespace ankh
         }
         else if (result != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to present swapchain image");
+            ANKH_THROW_MSG("Failed to present swapchain image");
         }
 
         m_gpu->frame_ring->advance();

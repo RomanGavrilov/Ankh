@@ -2,22 +2,21 @@
 #include "commands/command-buffer.hpp"
 
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
 
     CommandBuffer::CommandBuffer(VkDevice device, VkCommandPool pool)
-        : m_device(device), m_pool(pool)
+        : m_device(device)
+        , m_pool(pool)
     {
         VkCommandBufferAllocateInfo ai{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
         ai.commandPool = m_pool;
         ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         ai.commandBufferCount = 1;
 
-        if (vkAllocateCommandBuffers(m_device, &ai, &m_buffer) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to allocate command buffer");
-        }
+        ANKH_VK_CHECK(vkAllocateCommandBuffers(m_device, &ai, &m_buffer));
     }
 
     CommandBuffer::~CommandBuffer()
@@ -60,26 +59,17 @@ namespace ankh
         VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
         bi.flags = flags;
 
-        if (vkBeginCommandBuffer(m_buffer, &bi) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to begin command buffer");
-        }
+        ANKH_VK_CHECK(vkBeginCommandBuffer(m_buffer, &bi));
     }
 
     void CommandBuffer::end()
     {
-        if (vkEndCommandBuffer(m_buffer) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to end command buffer");
-        }
+        ANKH_VK_CHECK(vkEndCommandBuffer(m_buffer));
     }
 
     void CommandBuffer::reset(VkCommandBufferResetFlags flags)
     {
-        if (vkResetCommandBuffer(m_buffer, flags) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to reset command buffer");
-        }
+        ANKH_VK_CHECK(vkResetCommandBuffer(m_buffer, flags));
     }
 
 } // namespace ankh

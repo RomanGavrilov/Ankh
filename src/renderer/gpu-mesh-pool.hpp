@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "memory/buffer.hpp"
-#include "memory/upload-context.hpp"
 #include "renderer/mesh-draw-info.hpp"
 #include "scene/mesh-pool.hpp"
 #include "scene/renderable.hpp"

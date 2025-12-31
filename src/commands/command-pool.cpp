@@ -1,6 +1,7 @@
 // src/commands/command-pool.cpp
 #include "commands/command-pool.hpp"
 #include <stdexcept>
+#include <utils/logging.hpp>
 
 namespace ankh
 {
@@ -15,7 +16,7 @@ namespace ankh
 
         if (vkCreateCommandPool(m_device, &info, nullptr, &m_pool) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create command pool");
+            ANKH_THROW_MSG("failed to create command pool");
         }
     }
 

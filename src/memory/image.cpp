@@ -43,12 +43,7 @@ namespace ankh
         VmaAllocationCreateInfo ai{};
         ai.usage = memoryUsage;
 
-        VkResult res = vmaCreateImage(m_allocator, &ci, &ai, &m_image, &m_allocation, nullptr);
-        if (res != VK_SUCCESS)
-        {
-            ANKH_LOG_ERROR("[Image] vmaCreateImage failed");
-            throw std::runtime_error("vmaCreateImage failed");
-        }
+        ANKH_VK_CHECK(vmaCreateImage(m_allocator, &ci, &ai, &m_image, &m_allocation, nullptr));
 
         VkImageViewCreateInfo vi{};
         vi.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

@@ -186,20 +186,20 @@ namespace ankh
             auto posIt = prim.attributes.find("POSITION");
             if (posIt == prim.attributes.end())
             {
-                throw std::runtime_error("Primitive missing POSITION");
+                ANKH_THROW_MSG("Primitive missing POSITION");
             }
 
             const tinygltf::Accessor &posAcc = gltf.accessors[posIt->second];
             if (posAcc.type != TINYGLTF_TYPE_VEC3 ||
                 posAcc.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT)
             {
-                throw std::runtime_error("Unsupported POSITION format (only FLOAT VEC3 supported)");
+                ANKH_THROW_MSG("Unsupported POSITION format (only FLOAT VEC3 supported)");
             }
 
             FloatAttributeView posView = make_float_view(gltf, posAcc, 3, "POSITION");
             if (!posView.base)
             {
-                throw std::runtime_error("Failed to create POSITION view");
+                ANKH_THROW_MSG("Failed to create POSITION view");
             }
 
             size_t vertexCount = posView.count;
@@ -330,13 +330,13 @@ namespace ankh
                 if (idxAcc.bufferView < 0 ||
                     idxAcc.bufferView >= static_cast<int>(gltf.bufferViews.size()))
                 {
-                    throw std::runtime_error("Index accessor has invalid bufferView");
+                    ANKH_THROW_MSG("Index accessor has invalid bufferView");
                 }
 
                 const tinygltf::BufferView &idxView = gltf.bufferViews[idxAcc.bufferView];
                 if (idxView.buffer < 0 || idxView.buffer >= static_cast<int>(gltf.buffers.size()))
                 {
-                    throw std::runtime_error("Index bufferView has invalid buffer");
+                    ANKH_THROW_MSG("Index bufferView has invalid buffer");
                 }
 
                 const tinygltf::Buffer &idxBuffer = gltf.buffers[idxView.buffer];
@@ -370,8 +370,8 @@ namespace ankh
 
                     if (value > std::numeric_limits<uint16_t>::max())
                     {
-                        throw std::runtime_error("Index value exceeds uint16 range; upgrade Mesh "
-                                                 "to uint32 to support this model");
+                        ANKH_THROW_MSG("Index value exceeds uint16 range; upgrade Mesh "
+                                       "to uint32 to support this model");
                     }
 
                     indices.push_back(static_cast<uint16_t>(value));
@@ -527,7 +527,7 @@ namespace ankh
         }
 
         ANKH_LOG_DEBUG("[ModelLoader] LoadGltf loaded " + std::to_string(model.nodes().size()) +
-                      " model nodes.");
+                       " model nodes.");
 
         return model;
     }
