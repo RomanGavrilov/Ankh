@@ -52,8 +52,8 @@ namespace ankh
                                 0,
                                 1,
                                 &set,
-                                0,
-                                nullptr);
+                                frame.dynamic_offset_count(),
+                                frame.dynamic_offsets());
 
         const auto &renderables = scene_renderer.renderables();
         const uint32_t capacity = frame.object_capacity();

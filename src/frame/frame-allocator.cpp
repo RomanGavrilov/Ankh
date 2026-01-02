@@ -34,6 +34,9 @@ namespace ankh
         m_currentSlot = slot;
         m_writeHead = 0;
 
+        // NEW: cache frame base for this slot
+        m_frameBase = static_cast<VkDeviceSize>(m_currentSlot) * m_limits.perFrameBytes; // NEW
+
 #ifndef NDEBUG
         m_debugAllocs.clear();
 #endif
@@ -74,12 +77,9 @@ namespace ankh
             return {};
         }
 
-        const VkDeviceSize frameBase =
-            static_cast<VkDeviceSize>(m_currentSlot) * m_limits.perFrameBytes;
-
         FrameAllocSpan span;
         span.buffer = m_buffer->handle();
-        span.offset = frameBase + aligned;
+        span.offset = m_frameBase + aligned;
         span.size = size;
         span.cpu = m_mapped + span.offset;
 

@@ -76,4 +76,48 @@ namespace ankh
         vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
     }
 
+    void DescriptorWriter::writeUniformBufferDynamic(VkDescriptorSet set,
+                                                     VkBuffer buf,
+                                                     VkDeviceSize offset,
+                                                     VkDeviceSize size,
+                                                     uint32_t binding)
+    {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = buf;
+        bufferInfo.offset = offset;
+        bufferInfo.range = size;
+
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = set;
+        write.dstBinding = binding;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+        write.descriptorCount = 1;
+        write.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
+    }
+
+    void DescriptorWriter::writeStorageBufferDynamic(VkDescriptorSet set,
+                                                     VkBuffer buf,
+                                                     VkDeviceSize offset,
+                                                     VkDeviceSize size,
+                                                     uint32_t binding)
+    {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = buf;
+        bufferInfo.offset = offset;
+        bufferInfo.range = size;
+
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = set;
+        write.dstBinding = binding;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+        write.descriptorCount = 1;
+        write.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(m_device, 1, &write, 0, nullptr);
+    }
+
 } // namespace ankh

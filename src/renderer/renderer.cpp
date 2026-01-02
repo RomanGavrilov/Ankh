@@ -152,15 +152,15 @@ namespace ankh
 
         const auto props = m_context->physical_device().properties();
 
-        FrameAllocator::Limits lim{};
-        lim.framesInFlight = ankh::config().framesInFlight;
-        lim.perFrameBytes = 1ull * 1024ull * 1024ull; // 1 MiB start; adjust later
+        FrameAllocator::Limits lim{};                       // FIX
+        lim.framesInFlight = ankh::config().framesInFlight; // FIX
+        lim.perFrameBytes = 1ull * 1024ull * 1024ull;       // FIX (or your chosen size)
         lim.minAlignment = std::max(props.limits.minUniformBufferOffsetAlignment,
-                                    props.limits.minStorageBufferOffsetAlignment);
+                                    props.limits.minStorageBufferOffsetAlignment); // FIX
 
         m_gpu->frame_allocator = std::make_unique<FrameAllocator>(m_context->allocator().handle(),
                                                                   m_context->device_handle(),
-                                                                  lim,
+                                                                  lim, // FIX
                                                                   m_retirement_queue.get());
 
         // Upload context: device + graphics queue family index
@@ -506,17 +506,52 @@ namespace ankh
 
         ANKH_VK_CHECK(vkAllocateDescriptorSets(m_context->device_handle(), &ai, sets.data()));
 
+        // Write each set once to point at the global FrameAllocator buffer
+        DescriptorWriter writer{m_context->device_handle()};
+
+        const VkBuffer global = m_gpu->frame_allocator->buffer();
+
         for (uint32_t i = 0; i < ankh::config().framesInFlight; ++i)
         {
             // Construct FrameContext
             m_gpu->frames.emplace_back(m_context->allocator().handle(),
                                        m_context->device_handle(),
                                        graphicsFamily,
-                                       objectSize,
                                        sets[i],
                                        m_gpu->texture->view(),
                                        m_gpu->texture->sampler(),
                                        m_retirement_queue.get());
+
+            const VkDeviceSize frameCap = m_gpu->frame_allocator->frame_capacity();
+
+            const auto props = m_context->physical_device().properties();
+
+            // Must match FrameAllocator::Limits::minAlignment (max of UBO/SSBO alignment)
+            const VkDeviceSize minAlignment =
+                std::max(static_cast<VkDeviceSize>(props.limits.minUniformBufferOffsetAlignment),
+                         static_cast<VkDeviceSize>(props.limits.minStorageBufferOffsetAlignment));
+
+            // Objects start after UBO, aligned to allocator alignment
+            const VkDeviceSize objBaseInSlice =
+                (sizeof(FrameUBO) + (minAlignment - 1)) & ~(minAlignment - 1);
+
+            writer.writeUniformBufferDynamic(sets[i],
+                                             global,
+                                             /*offset*/ 0,
+                                             sizeof(FrameUBO),
+                                             /*binding*/ 0);
+
+            writer.writeStorageBufferDynamic(sets[i],
+                                             global,
+                                             /*offset*/ objBaseInSlice,
+                                             /*range*/ frameCap - objBaseInSlice,
+                                             /*binding*/ 1);
+
+            writer.writeCombinedImageSampler(sets[i],
+                                             m_gpu->texture->view(),
+                                             m_gpu->texture->sampler(),
+                                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                             /*binding*/ 2);
         }
     }
 
@@ -593,7 +628,7 @@ namespace ankh
         // 1. Update scene (camera + renderable transforms)
         m_gpu->scene_renderer->update_frame(frame, *m_gpu->swapchain, time);
 
-        // 2. Build FrameUBO (same as before)
+        // 2. Build FrameUBO
         FrameUBO fubo{};
         const auto &cam = m_gpu->scene_renderer->camera();
         fubo.view = cam.view();
@@ -609,26 +644,12 @@ namespace ankh
         // =========================
         ANKH_ASSERT(m_gpu->frame_allocator != nullptr);
 
-        auto span = m_gpu->frame_allocator->alloc("FrameUBO", sizeof(FrameUBO), alignof(FrameUBO));
+        auto ubo = m_gpu->frame_allocator->alloc("FrameUBO", sizeof(FrameUBO), alignof(FrameUBO));
+        ANKH_ASSERT(ubo.buffer != VK_NULL_HANDLE);
+        ANKH_ASSERT(ubo.cpu != nullptr);
+        ANKH_ASSERT(ubo.size == sizeof(FrameUBO));
+        std::memcpy(ubo.cpu, &fubo, sizeof(FrameUBO));
 
-        ANKH_ASSERT(span.buffer != VK_NULL_HANDLE);
-        ANKH_ASSERT(span.cpu != nullptr);
-        ANKH_ASSERT(span.size == sizeof(FrameUBO));
-
-        std::memcpy(span.cpu, &fubo, sizeof(FrameUBO));
-
-        // =========================
-        // Update descriptor set binding 0 with span offset
-        // =========================
-        DescriptorWriter writer{m_context->device_handle()};
-        writer.writeUniformBuffer(frame.descriptor_set(),
-                                  span.buffer,
-                                  span.offset,
-                                  span.size,
-                                  /*binding*/ 0);
-
-        // 3. Write ObjectDataGPU array (unchanged)
-        auto *objData = reinterpret_cast<ObjectDataGPU *>(frame.object_mapped());
         auto &renderables = m_gpu->scene_renderer->renderables();
         auto &materials = m_gpu->scene_renderer->material_pool();
 
@@ -643,6 +664,11 @@ namespace ankh
                           "); extra objects will not be drawn this frame.");
         }
 
+        const VkDeviceSize objBytes = sizeof(ObjectDataGPU) * count;
+        auto obj = m_gpu->frame_allocator->alloc("ObjectDataGPU", objBytes, alignof(ObjectDataGPU));
+
+        auto *objData = reinterpret_cast<ObjectDataGPU *>(obj.cpu);
+
         for (uint32_t i = 0; i < count; ++i)
         {
             const auto &r = renderables[i];
@@ -656,6 +682,12 @@ namespace ankh
             }
             objData[i].albedo = albedo;
         }
+
+        const VkDeviceSize frameCap = m_gpu->frame_allocator->frame_capacity();
+        const VkDeviceSize frameBase = frameCap * static_cast<VkDeviceSize>(slot);
+
+        frame.set_dynamic_offsets(static_cast<uint32_t>(frameBase),
+                                  static_cast<uint32_t>(frameBase));
     }
 
     void Renderer::draw_frame()

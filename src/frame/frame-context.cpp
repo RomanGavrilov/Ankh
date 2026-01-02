@@ -8,6 +8,7 @@
 #include "utils/gpu-retirement-queue.hpp"
 
 #include <stdexcept>
+#include <utils/config.hpp>
 #include <utils/logging.hpp>
 
 namespace ankh
@@ -16,7 +17,6 @@ namespace ankh
     FrameContext::FrameContext(VmaAllocator allocator,
                                VkDevice device,
                                uint32_t graphicsQueueFamilyIndex,
-                               VkDeviceSize objectBufferSize,
                                VkDescriptorSet descriptorSet,
                                VkImageView textureView,
                                VkSampler textureSampler,
@@ -30,35 +30,7 @@ namespace ankh
 
         m_cmd = std::make_unique<CommandBuffer>(m_device, m_pool->handle());
 
-        // Object buffer (ObjectDataGPU array)
-        m_object_buffer = std::make_unique<Buffer>(allocator,
-                                                   m_device,
-                                                   objectBufferSize,
-                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                   VMA_MEMORY_USAGE_CPU_TO_GPU,
-                                                   retirement,
-                                                   GpuSignal{},
-                                                   VMA_ALLOCATION_CREATE_MAPPED_BIT);
-
-        m_object_mapped = m_object_buffer->map();
-
-        // How many ObjectDataGPU elements fit in the object buffer?
-        m_object_capacity = static_cast<uint32_t>(objectBufferSize / sizeof(ObjectDataGPU));
-
-        // Update descriptor set for this frame
-        DescriptorWriter writer{m_device};
-
-        writer.writeStorageBuffer(m_descriptor_set,
-                                  m_object_buffer->handle(),
-                                  /*offset*/ 0,
-                                  objectBufferSize,
-                                  /*binding*/ 1);
-
-        writer.writeCombinedImageSampler(m_descriptor_set,
-                                         textureView,
-                                         textureSampler,
-                                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                         /*binding*/ 2);
+        m_object_capacity = ankh::config().maxObjects;
 
         VkSemaphoreCreateInfo semInfo{};
         semInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -78,12 +50,6 @@ namespace ankh
         if (m_device == VK_NULL_HANDLE)
         {
             return;
-        }
-
-        if (m_object_buffer && m_object_mapped)
-        {
-            m_object_buffer->unmap();
-            m_object_mapped = nullptr;
         }
 
         if (m_image_available != VK_NULL_HANDLE)
@@ -128,11 +94,6 @@ namespace ankh
 
     VkCommandBuffer FrameContext::begin(GpuSignal signal)
     {
-        if (m_retirement)
-        {
-            m_object_buffer->set_retirement(m_retirement, signal);
-        }
-
         m_cmd->reset();
         m_cmd->begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
         return m_cmd->handle();

@@ -13,7 +13,7 @@ namespace ankh
         // Binding 0: FrameUBO (uniform buffer)
         VkDescriptorSetLayoutBinding frameUBO{};
         frameUBO.binding = 0;
-        frameUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        frameUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
         frameUBO.descriptorCount = 1;
         frameUBO.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         frameUBO.pImmutableSamplers = nullptr;
@@ -21,7 +21,7 @@ namespace ankh
         // Binding 1: Object buffer (storage buffer)
         VkDescriptorSetLayoutBinding objectBuffer{};
         objectBuffer.binding = 1;
-        objectBuffer.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        objectBuffer.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
         objectBuffer.descriptorCount = 1;
         objectBuffer.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         objectBuffer.pImmutableSamplers = nullptr;
